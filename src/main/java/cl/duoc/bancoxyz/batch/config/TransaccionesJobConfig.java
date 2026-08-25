@@ -15,30 +15,37 @@ import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilde
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.FlatFileParseException;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
+import org.springframework.batch.item.support.SynchronizedItemStreamReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
+// Configura la lectura, transformación y resumen de transacciones.
 public class TransaccionesJobConfig {
 
     @Bean
+    // Ejecuta las etapas del procesamiento en el orden definido.
     public Job transaccionesJob(JobRepository repository, Step limpiarTransaccionesStep,
-                                Step procesarTransaccionesStep, Step resumenTransaccionesStep) {
+                                Step procesarTransaccionesStep, Step resumenTransaccionesStep,
+                                org.springframework.batch.core.JobExecutionListener batchJobLogListener) {
         return new JobBuilder("transaccionesJob", repository)
                 .incrementer(new org.springframework.batch.core.launch.support.RunIdIncrementer())
                 .start(limpiarTransaccionesStep)
                 .next(procesarTransaccionesStep)
                 .next(resumenTransaccionesStep)
+                .listener(batchJobLogListener)
                 .build();
     }
 
     @Bean
+    // Elimina los resultados anteriores antes de iniciar una ejecución.
     public Step limpiarTransaccionesStep(JobRepository repository,
                                          PlatformTransactionManager transactionManager,
                                          JdbcTemplate jdbcTemplate) {
@@ -53,16 +60,19 @@ public class TransaccionesJobConfig {
     }
 
     @Bean
+    // Procesa cinco registros por chunk con tolerancia a errores y tres hilos.
     public Step procesarTransaccionesStep(JobRepository repository,
                                            PlatformTransactionManager transactionManager,
                                            FlatFileItemReader<TransaccionCsv> transaccionesReader,
                                            JdbcBatchItemWriter<Transaccion> transaccionesWriter,
-                                           JdbcTemplate jdbcTemplate) {
+                                           JdbcTemplate jdbcTemplate,
+                                           TaskExecutor batchTaskExecutor) {
         return new StepBuilder("procesarTransaccionesStep", repository)
                 .<TransaccionCsv, Transaccion>chunk(5, transactionManager)
-                .reader(transaccionesReader)
+                .reader(BatchConfiguration.synchronizedReader(transaccionesReader))
                 .processor(new TransaccionProcessor())
                 .writer(transaccionesWriter)
+                .taskExecutor(batchTaskExecutor)
                 .faultTolerant()
                 .skip(RegistroInvalidoException.class)
                 .skip(FlatFileParseException.class)
@@ -76,6 +86,7 @@ public class TransaccionesJobConfig {
     }
 
     @Bean
+    // Agrupa las transacciones procesadas por tipo.
     public Step resumenTransaccionesStep(JobRepository repository,
                                           PlatformTransactionManager transactionManager,
                                           JdbcTemplate jdbcTemplate) {
@@ -93,6 +104,7 @@ public class TransaccionesJobConfig {
     }
 
     @Bean
+    // Lee los campos de cada transacción desde un archivo delimitado.
     public FlatFileItemReader<TransaccionCsv> transaccionesReader(
             @Value("${app.archivos.transacciones}") Resource resource) {
         return new FlatFileItemReaderBuilder<TransaccionCsv>()
@@ -108,6 +120,7 @@ public class TransaccionesJobConfig {
     }
 
     @Bean
+    // Inserta las transacciones válidas en la base de datos.
     public JdbcBatchItemWriter<Transaccion> transaccionesWriter(javax.sql.DataSource dataSource) {
         return new JdbcBatchItemWriterBuilder<Transaccion>()
                 .dataSource(dataSource)

@@ -14,6 +14,7 @@ public class MovimientoAnualProcessor implements ItemProcessor<MovimientoAnualCs
 
     private static final Set<String> TIPOS_VALIDOS = Set.of("deposito", "retiro", "compra");
     @Override
+    // Valida el movimiento y convierte sus valores al formato interno.
     public MovimientoAnual process(MovimientoAnualCsv item) {
         if (item.cuentaId() == null || esVacio(item.transaccion()) || esVacio(item.descripcion())) {
             throw new RegistroInvalidoException("Campos obligatorios ausentes", item);

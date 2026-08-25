@@ -44,16 +44,19 @@ class JobsIntegrationTest {
         assertThat(valor("SELECT COUNT(*) FROM transacciones_procesadas")).isEqualTo(9);
         assertThat(valor("SELECT SUM(anomalias) FROM resumen_transacciones")).isEqualTo(2);
         assertThat(rechazados("transaccionesJob")).isEqualTo(1);
+        System.out.println("EVIDENCIA transaccionesJob: COMPLETED | persistidos=9 | anomalias=2 | rechazados=1");
 
         assertThat(ejecutar(interesesJob, 2L)).isEqualTo(BatchStatus.COMPLETED);
         assertThat(valor("SELECT COUNT(*) FROM intereses_calculados")).isEqualTo(4);
         assertThat(rechazados("interesesJob")).isEqualTo(4);
+        System.out.println("EVIDENCIA interesesJob: COMPLETED | persistidos=4 | rechazados=4");
 
         assertThat(ejecutar(estadosAnualesJob, 3L)).isEqualTo(BatchStatus.COMPLETED);
         assertThat(valor("SELECT COUNT(*) FROM movimientos_anuales")).isEqualTo(8);
         assertThat(valor("SELECT COUNT(*) FROM estados_cuenta_anuales")).isEqualTo(7);
         assertThat(rechazados("estadosAnualesJob")).isEqualTo(1);
         assertThat(Files.exists(Path.of("build/reportes/estados_cuenta_anuales.csv"))).isTrue();
+        System.out.println("EVIDENCIA estadosAnualesJob: COMPLETED | movimientos=8 | estados=7 | rechazados=1 | informe=OK");
     }
 
     private BatchStatus ejecutar(Job job, long runId) throws Exception {

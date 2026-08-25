@@ -15,29 +15,36 @@ import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilde
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.FlatFileParseException;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
+import org.springframework.batch.item.support.SynchronizedItemStreamReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
+// Configura el cálculo y almacenamiento de intereses.
 public class InteresesJobConfig {
 
     @Bean
+    // Ejecuta la limpieza y el cálculo de intereses en secuencia.
     public Job interesesJob(JobRepository repository, Step limpiarInteresesStep,
-                            Step procesarInteresesStep) {
+                            Step procesarInteresesStep,
+                            org.springframework.batch.core.JobExecutionListener batchJobLogListener) {
         return new JobBuilder("interesesJob", repository)
                 .incrementer(new org.springframework.batch.core.launch.support.RunIdIncrementer())
                 .start(limpiarInteresesStep)
                 .next(procesarInteresesStep)
+                .listener(batchJobLogListener)
                 .build();
     }
 
     @Bean
+    // Elimina los cálculos anteriores antes de procesar nuevos registros.
     public Step limpiarInteresesStep(JobRepository repository,
                                      PlatformTransactionManager transactionManager,
                                      JdbcTemplate jdbcTemplate) {
@@ -51,16 +58,19 @@ public class InteresesJobConfig {
     }
 
     @Bean
+    // Calcula y guarda los intereses en chunks de cinco registros.
     public Step procesarInteresesStep(JobRepository repository,
                                       PlatformTransactionManager transactionManager,
                                       FlatFileItemReader<InteresCsv> interesesReader,
                                       JdbcBatchItemWriter<InteresCalculado> interesesWriter,
-                                      JdbcTemplate jdbcTemplate) {
+                                      JdbcTemplate jdbcTemplate,
+                                      TaskExecutor batchTaskExecutor) {
         return new StepBuilder("procesarInteresesStep", repository)
                 .<InteresCsv, InteresCalculado>chunk(5, transactionManager)
-                .reader(interesesReader)
+                .reader(BatchConfiguration.synchronizedReader(interesesReader))
                 .processor(new InteresProcessor())
                 .writer(interesesWriter)
+                .taskExecutor(batchTaskExecutor)
                 .faultTolerant()
                 .skip(RegistroInvalidoException.class)
                 .skip(FlatFileParseException.class)
@@ -74,6 +84,7 @@ public class InteresesJobConfig {
     }
 
     @Bean
+    // Lee los datos de cuenta desde un archivo delimitado.
     public FlatFileItemReader<InteresCsv> interesesReader(
             @Value("${app.archivos.intereses}") Resource resource) {
         return new FlatFileItemReaderBuilder<InteresCsv>()
@@ -90,6 +101,7 @@ public class InteresesJobConfig {
     }
 
     @Bean
+    // Inserta los intereses calculados en la base de datos.
     public JdbcBatchItemWriter<InteresCalculado> interesesWriter(javax.sql.DataSource dataSource) {
         return new JdbcBatchItemWriterBuilder<InteresCalculado>()
                 .dataSource(dataSource)

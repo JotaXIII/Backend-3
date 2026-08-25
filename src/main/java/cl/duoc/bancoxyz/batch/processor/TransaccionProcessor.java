@@ -14,6 +14,7 @@ public class TransaccionProcessor implements ItemProcessor<TransaccionCsv, Trans
 
     private static final Set<String> TIPOS_VALIDOS = Set.of("debito", "credito");
     @Override
+    // Valida, normaliza y marca las transacciones con anomalías.
     public Transaccion process(TransaccionCsv item) {
         if (item.id() == null || item.monto() == null || item.tipo() == null) {
             throw new RegistroInvalidoException("Campos obligatorios ausentes", item);
