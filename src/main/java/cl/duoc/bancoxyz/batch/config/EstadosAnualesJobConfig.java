@@ -5,11 +5,15 @@ import cl.duoc.bancoxyz.batch.domain.MovimientoAnualCsv;
 import cl.duoc.bancoxyz.batch.processor.MovimientoAnualProcessor;
 import cl.duoc.bancoxyz.batch.support.RegistroInvalidoException;
 import cl.duoc.bancoxyz.batch.support.RegistroOmitidoListener;
+import cl.duoc.bancoxyz.batch.support.CsvPartitioner;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.core.partition.support.Partitioner;
+import org.springframework.batch.core.partition.support.TaskExecutorPartitionHandler;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
@@ -38,12 +42,12 @@ public class EstadosAnualesJobConfig {
     @Bean
     // Ejecuta la limpieza, carga y generación del informe.
     public Job estadosAnualesJob(JobRepository repository, Step limpiarEstadosAnualesStep,
-                                 Step procesarEstadosAnualesStep, Step generarEstadosAnualesStep,
+                                 Step procesarEstadosAnualesPartitionedStep, Step generarEstadosAnualesStep,
                                  org.springframework.batch.core.JobExecutionListener batchJobLogListener) {
         return new JobBuilder("estadosAnualesJob", repository)
                 .incrementer(new org.springframework.batch.core.launch.support.RunIdIncrementer())
                 .start(limpiarEstadosAnualesStep)
-                .next(procesarEstadosAnualesStep)
+                .next(procesarEstadosAnualesPartitionedStep)
                 .next(generarEstadosAnualesStep)
                 .listener(batchJobLogListener)
                 .build();
@@ -70,14 +74,12 @@ public class EstadosAnualesJobConfig {
                                             PlatformTransactionManager transactionManager,
                                             FlatFileItemReader<MovimientoAnualCsv> movimientosAnualesReader,
                                             JdbcBatchItemWriter<MovimientoAnual> movimientosAnualesWriter,
-                                            JdbcTemplate jdbcTemplate,
-                                            TaskExecutor batchTaskExecutor) {
+                                            JdbcTemplate jdbcTemplate) {
         return new StepBuilder("procesarEstadosAnualesStep", repository)
                 .<MovimientoAnualCsv, MovimientoAnual>chunk(5, transactionManager)
-                .reader(BatchConfiguration.synchronizedReader(movimientosAnualesReader))
+                .reader(movimientosAnualesReader)
                 .processor(new MovimientoAnualProcessor())
                 .writer(movimientosAnualesWriter)
-                .taskExecutor(batchTaskExecutor)
                 .faultTolerant()
                 .skip(RegistroInvalidoException.class)
                 .skip(FlatFileParseException.class)
@@ -87,6 +89,29 @@ public class EstadosAnualesJobConfig {
                 .retryLimit(3)
                 .listener(new RegistroOmitidoListener<MovimientoAnualCsv, MovimientoAnual>(jdbcTemplate,
                         "estadosAnualesJob"))
+                .build();
+    }
+
+    @Bean
+    public Partitioner estadosAnualesPartitioner(
+            @Value("${app.archivos.cuentas-anuales}") Resource resource,
+            @Value("${app.batch.grid-size:3}") int gridSize) {
+        return new CsvPartitioner(resource, gridSize);
+    }
+
+    @Bean
+    public Step procesarEstadosAnualesPartitionedStep(JobRepository repository,
+                                                      Step procesarEstadosAnualesStep,
+                                                      Partitioner estadosAnualesPartitioner,
+                                                      TaskExecutor batchTaskExecutor,
+                                                      @Value("${app.batch.grid-size:3}") int gridSize) {
+        var handler = new TaskExecutorPartitionHandler();
+        handler.setTaskExecutor(batchTaskExecutor);
+        handler.setStep(procesarEstadosAnualesStep);
+        handler.setGridSize(gridSize);
+        return new StepBuilder("procesarEstadosAnualesPartitionedStep", repository)
+                .partitioner("procesarEstadosAnualesStep", estadosAnualesPartitioner)
+                .partitionHandler(handler)
                 .build();
     }
 
@@ -115,9 +140,12 @@ public class EstadosAnualesJobConfig {
 
     @Bean
     // Lee los movimientos desde un archivo delimitado.
+    @StepScope
     public FlatFileItemReader<MovimientoAnualCsv> movimientosAnualesReader(
-            @Value("${app.archivos.cuentas-anuales}") Resource resource) {
-        return new FlatFileItemReaderBuilder<MovimientoAnualCsv>()
+            @Value("${app.archivos.cuentas-anuales}") Resource resource,
+            @Value("#{stepExecutionContext['start']}") Integer start,
+            @Value("#{stepExecutionContext['end']}") Integer end) {
+        var reader = new FlatFileItemReaderBuilder<MovimientoAnualCsv>()
                 .name("movimientosAnualesReader")
                 .resource(resource)
                 .linesToSkip(1)
@@ -128,6 +156,9 @@ public class EstadosAnualesJobConfig {
                         fields.readString("transaccion"), fields.readString("monto"),
                         fields.readString("descripcion")))
                 .build();
+        reader.setCurrentItemCount(start);
+        reader.setMaxItemCount(end);
+        return reader;
     }
 
     @Bean

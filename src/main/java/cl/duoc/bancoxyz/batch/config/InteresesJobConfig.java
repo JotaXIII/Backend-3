@@ -5,11 +5,15 @@ import cl.duoc.bancoxyz.batch.domain.InteresCsv;
 import cl.duoc.bancoxyz.batch.processor.InteresProcessor;
 import cl.duoc.bancoxyz.batch.support.RegistroInvalidoException;
 import cl.duoc.bancoxyz.batch.support.RegistroOmitidoListener;
+import cl.duoc.bancoxyz.batch.support.CsvPartitioner;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.core.partition.support.Partitioner;
+import org.springframework.batch.core.partition.support.TaskExecutorPartitionHandler;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
@@ -33,12 +37,12 @@ public class InteresesJobConfig {
     @Bean
     // Ejecuta la limpieza y el cálculo de intereses en secuencia.
     public Job interesesJob(JobRepository repository, Step limpiarInteresesStep,
-                            Step procesarInteresesStep,
+                            Step procesarInteresesPartitionedStep,
                             org.springframework.batch.core.JobExecutionListener batchJobLogListener) {
         return new JobBuilder("interesesJob", repository)
                 .incrementer(new org.springframework.batch.core.launch.support.RunIdIncrementer())
                 .start(limpiarInteresesStep)
-                .next(procesarInteresesStep)
+                .next(procesarInteresesPartitionedStep)
                 .listener(batchJobLogListener)
                 .build();
     }
@@ -63,14 +67,12 @@ public class InteresesJobConfig {
                                       PlatformTransactionManager transactionManager,
                                       FlatFileItemReader<InteresCsv> interesesReader,
                                       JdbcBatchItemWriter<InteresCalculado> interesesWriter,
-                                      JdbcTemplate jdbcTemplate,
-                                      TaskExecutor batchTaskExecutor) {
+                                      JdbcTemplate jdbcTemplate) {
         return new StepBuilder("procesarInteresesStep", repository)
                 .<InteresCsv, InteresCalculado>chunk(5, transactionManager)
-                .reader(BatchConfiguration.synchronizedReader(interesesReader))
+                .reader(interesesReader)
                 .processor(new InteresProcessor())
                 .writer(interesesWriter)
-                .taskExecutor(batchTaskExecutor)
                 .faultTolerant()
                 .skip(RegistroInvalidoException.class)
                 .skip(FlatFileParseException.class)
@@ -84,10 +86,36 @@ public class InteresesJobConfig {
     }
 
     @Bean
+    public Partitioner interesesPartitioner(
+            @Value("${app.archivos.intereses}") Resource resource,
+            @Value("${app.batch.grid-size:3}") int gridSize) {
+        return new CsvPartitioner(resource, gridSize);
+    }
+
+    @Bean
+    public Step procesarInteresesPartitionedStep(JobRepository repository,
+                                                 Step procesarInteresesStep,
+                                                 Partitioner interesesPartitioner,
+                                                 TaskExecutor batchTaskExecutor,
+                                                 @Value("${app.batch.grid-size:3}") int gridSize) {
+        var handler = new TaskExecutorPartitionHandler();
+        handler.setTaskExecutor(batchTaskExecutor);
+        handler.setStep(procesarInteresesStep);
+        handler.setGridSize(gridSize);
+        return new StepBuilder("procesarInteresesPartitionedStep", repository)
+                .partitioner("procesarInteresesStep", interesesPartitioner)
+                .partitionHandler(handler)
+                .build();
+    }
+
+    @Bean
     // Lee los datos de cuenta desde un archivo delimitado.
+    @StepScope
     public FlatFileItemReader<InteresCsv> interesesReader(
-            @Value("${app.archivos.intereses}") Resource resource) {
-        return new FlatFileItemReaderBuilder<InteresCsv>()
+            @Value("${app.archivos.intereses}") Resource resource,
+            @Value("#{stepExecutionContext['start']}") Integer start,
+            @Value("#{stepExecutionContext['end']}") Integer end) {
+        var reader = new FlatFileItemReaderBuilder<InteresCsv>()
                 .name("interesesReader")
                 .resource(resource)
                 .linesToSkip(1)
@@ -98,6 +126,9 @@ public class InteresesJobConfig {
                         fields.readString("saldo"), fields.readString("edad"),
                         fields.readString("tipo")))
                 .build();
+        reader.setCurrentItemCount(start);
+        reader.setMaxItemCount(end);
+        return reader;
     }
 
     @Bean

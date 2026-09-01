@@ -5,6 +5,7 @@ import cl.duoc.bancoxyz.batch.domain.TransaccionCsv;
 import cl.duoc.bancoxyz.batch.processor.TransaccionProcessor;
 import cl.duoc.bancoxyz.batch.support.RegistroInvalidoException;
 import cl.duoc.bancoxyz.batch.support.RegistroOmitidoListener;
+import cl.duoc.bancoxyz.batch.support.CsvPartitioner;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -15,7 +16,10 @@ import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilde
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.FlatFileParseException;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
-import org.springframework.batch.item.support.SynchronizedItemStreamReader;
+import org.springframework.batch.core.partition.support.Partitioner;
+import org.springframework.batch.core.partition.support.TaskExecutorPartitionHandler;
+import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.item.ExecutionContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +30,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.util.Map;
+
 @Configuration
 // Configura la lectura, transformación y resumen de transacciones.
 public class TransaccionesJobConfig {
@@ -33,12 +39,12 @@ public class TransaccionesJobConfig {
     @Bean
     // Ejecuta las etapas del procesamiento en el orden definido.
     public Job transaccionesJob(JobRepository repository, Step limpiarTransaccionesStep,
-                                Step procesarTransaccionesStep, Step resumenTransaccionesStep,
+                                Step procesarTransaccionesPartitionedStep, Step resumenTransaccionesStep,
                                 org.springframework.batch.core.JobExecutionListener batchJobLogListener) {
         return new JobBuilder("transaccionesJob", repository)
                 .incrementer(new org.springframework.batch.core.launch.support.RunIdIncrementer())
                 .start(limpiarTransaccionesStep)
-                .next(procesarTransaccionesStep)
+                .next(procesarTransaccionesPartitionedStep)
                 .next(resumenTransaccionesStep)
                 .listener(batchJobLogListener)
                 .build();
@@ -60,19 +66,17 @@ public class TransaccionesJobConfig {
     }
 
     @Bean
-    // Procesa cinco registros por chunk con tolerancia a errores y tres hilos.
+    // Worker: cada instancia procesa el rango asignado por el particionador.
     public Step procesarTransaccionesStep(JobRepository repository,
                                            PlatformTransactionManager transactionManager,
                                            FlatFileItemReader<TransaccionCsv> transaccionesReader,
                                            JdbcBatchItemWriter<Transaccion> transaccionesWriter,
-                                           JdbcTemplate jdbcTemplate,
-                                           TaskExecutor batchTaskExecutor) {
+                                           JdbcTemplate jdbcTemplate) {
         return new StepBuilder("procesarTransaccionesStep", repository)
                 .<TransaccionCsv, Transaccion>chunk(5, transactionManager)
-                .reader(BatchConfiguration.synchronizedReader(transaccionesReader))
+                .reader(transaccionesReader)
                 .processor(new TransaccionProcessor())
                 .writer(transaccionesWriter)
-                .taskExecutor(batchTaskExecutor)
                 .faultTolerant()
                 .skip(RegistroInvalidoException.class)
                 .skip(FlatFileParseException.class)
@@ -82,6 +86,29 @@ public class TransaccionesJobConfig {
                 .retryLimit(3)
                 .listener(new RegistroOmitidoListener<TransaccionCsv, Transaccion>(jdbcTemplate,
                         "transaccionesJob"))
+                .build();
+    }
+
+    @Bean
+    public Partitioner transaccionesPartitioner(
+            @Value("${app.archivos.transacciones}") Resource resource,
+            @Value("${app.batch.grid-size:3}") int gridSize) {
+        return new CsvPartitioner(resource, gridSize);
+    }
+
+    @Bean
+    public Step procesarTransaccionesPartitionedStep(JobRepository repository,
+                                                      Step procesarTransaccionesStep,
+                                                      Partitioner transaccionesPartitioner,
+                                                      TaskExecutor batchTaskExecutor,
+                                                      @Value("${app.batch.grid-size:3}") int gridSize) {
+        var handler = new TaskExecutorPartitionHandler();
+        handler.setTaskExecutor(batchTaskExecutor);
+        handler.setStep(procesarTransaccionesStep);
+        handler.setGridSize(gridSize);
+        return new StepBuilder("procesarTransaccionesPartitionedStep", repository)
+                .partitioner("procesarTransaccionesStep", transaccionesPartitioner)
+                .partitionHandler(handler)
                 .build();
     }
 
@@ -105,9 +132,12 @@ public class TransaccionesJobConfig {
 
     @Bean
     // Lee los campos de cada transacción desde un archivo delimitado.
+    @StepScope
     public FlatFileItemReader<TransaccionCsv> transaccionesReader(
-            @Value("${app.archivos.transacciones}") Resource resource) {
-        return new FlatFileItemReaderBuilder<TransaccionCsv>()
+            @Value("${app.archivos.transacciones}") Resource resource,
+            @Value("#{stepExecutionContext['start']}") Integer start,
+            @Value("#{stepExecutionContext['end']}") Integer end) {
+        var reader = new FlatFileItemReaderBuilder<TransaccionCsv>()
                 .name("transaccionesReader")
                 .resource(resource)
                 .linesToSkip(1)
@@ -117,6 +147,9 @@ public class TransaccionesJobConfig {
                         fields.readLong("id"), fields.readString("fecha"),
                         fields.readString("monto"), fields.readString("tipo")))
                 .build();
+        reader.setCurrentItemCount(start);
+        reader.setMaxItemCount(end);
+        return reader;
     }
 
     @Bean

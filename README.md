@@ -1,6 +1,6 @@
-# Banco XYZ Batch
+# Banco XYZ Batch - Semana 3
 
-Proyecto de la Semana 2 para migrar tres procesos legacy a Spring Batch.
+Implementación de la actividad “Optimizando procesos batch para mejorar la resiliencia de procesos”. Migra tres procesos legacy a Spring Batch y los ejecuta con particionamiento por rangos de registros CSV.
 
 ## Procesos
 
@@ -43,6 +43,20 @@ mvn test
 ```
 
 Las pruebas verifican los tres Jobs, los registros omitidos y el informe anual generado en `build/reportes/estados_cuenta_anuales.csv`.
+
+## Semana 3: particionamiento y comparación
+
+Cada Job usa un Step maestro con `TaskExecutorPartitionHandler` y workers que reciben `start` y `end` mediante `ExecutionContext`. La configuración predeterminada es de 3 particiones y 3 hilos.
+
+Para comparar rendimiento, ejecutar los Jobs con `BATCH_GRID_SIZE=1` y `BATCH_THREADS=1`, y luego con `BATCH_GRID_SIZE=3` y `BATCH_THREADS=3`. Registrar la duración del log y comprobar que los resultados sean iguales. En archivos pequeños, el paralelismo puede no ser más rápido por el costo de coordinación.
+
+En PowerShell:
+
+```powershell
+$env:BATCH_GRID_SIZE=3
+$env:BATCH_THREADS=3
+mvn spring-boot:run -Dspring-boot.run.arguments="--spring.batch.job.name=transaccionesJob"
+```
 
 La evidencia comprobable de ejecución se encuentra en `docs/evidencia/ejecucion.pdf`.
 

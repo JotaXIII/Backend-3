@@ -4,6 +4,7 @@ import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobExecutionListener;
 import org.springframework.batch.item.support.SynchronizedItemStreamReader;
 import org.springframework.batch.item.support.builder.SynchronizedItemStreamReaderBuilder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
@@ -17,10 +18,10 @@ public class BatchConfiguration {
 
     @Bean
     // Limita la ejecución paralela a tres hilos reutilizables.
-    public TaskExecutor batchTaskExecutor() {
+    public TaskExecutor batchTaskExecutor(@Value("${app.batch.threads:3}") int threads) {
         var executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(3);
-        executor.setMaxPoolSize(3);
+        executor.setCorePoolSize(threads);
+        executor.setMaxPoolSize(threads);
         executor.setQueueCapacity(10);
         executor.setThreadNamePrefix("Batch-Thread-");
         executor.initialize();
