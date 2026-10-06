@@ -1,0 +1,178 @@
+EVIDENCIA DE EJECUCION - SEMANA 8
+Rama: feature/semana-8-microservicios
+OAuth2: client_credentials | Bearer | scope=procesos.write datos.read | expires_in=599
+
+VERIFICACIONES FUNCIONALES
+Sin token : 401
+Firma invalida : 401
+Permiso insuficiente : 403
+Proceso invalido : 400
+JMS transacciones : COMPLETED
+JMS intereses : COMPLETED
+JMS estados-anuales : COMPLETED
+Propietario distinto : 404
+Resultados transacciones : 9
+Resultados intereses : 4
+Resultados estados-anuales : 7
+Solicitud repetida : Una ejecucion
+Servicio detenido : Fallback y circuito OPEN
+Servicio recuperado : CLOSED
+Broker detenido : Solicitud PENDIENTE
+Broker recuperado : COMPLETED
+
+COMPONENTES
+autorizacion | banco-xyz/autorizacion:1.0.0 | healthy
+batch | banco-xyz/batch:1.0.0 | healthy
+configuracion | banco-xyz/configuracion:1.0.0 | healthy
+consultas | banco-xyz/consultas:1.0.0 | healthy
+descubrimiento | banco-xyz/descubrimiento:1.0.0 | healthy
+mensajeria | apache/activemq-artemis:2.41.0 | healthy
+postgres | postgres:17-alpine | healthy
+solicitudes | banco-xyz/solicitudes:1.0.0 | healthy
+
+IMAGENES
+CONTAINER                                   REPOSITORY                 TAG                 PLATFORM            IMAGE ID            SIZE                CREATED
+exp3_s8_juancarlos_osega-autorizacion-1     banco-xyz/autorizacion     1.0.0               linux/arm64         dd4fbb7902cf        122MB               7 minutes ago
+exp3_s8_juancarlos_osega-batch-1            banco-xyz/batch            1.0.0               linux/arm64         67fe92a62a8c        135MB               6 minutes ago
+exp3_s8_juancarlos_osega-configuracion-1    banco-xyz/configuracion    1.0.0               linux/arm64         d16d15d81db3        136MB               7 minutes ago
+exp3_s8_juancarlos_osega-consultas-1        banco-xyz/consultas        1.0.0               linux/arm64         5d95ab21b62c        144MB               6 minutes ago
+exp3_s8_juancarlos_osega-descubrimiento-1   banco-xyz/descubrimiento   1.0.0               linux/arm64         083b66a8f566        148MB               6 minutes ago
+exp3_s8_juancarlos_osega-mensajeria-1       apache/activemq-artemis    2.41.0              linux/arm64         c6c3bdce5a7a        145MB               17 months ago
+exp3_s8_juancarlos_osega-postgres-1         postgres                   17-alpine           linux/arm64/v8      b0f9560a2de0        115MB               2 weeks ago
+exp3_s8_juancarlos_osega-solicitudes-1      banco-xyz/solicitudes      1.0.0               linux/arm64         e084ea446243        156MB               6 minutes ago
+
+INICIO DE SERVICIOS
+batch-1           | 2026-10-06T01:38:37.612Z  INFO 1 --- [banco-xyz-batch] [           main] c.d.b.batch.BancoXyzBatchApplication     : Started BancoXyzBatchApplication in 6.383 seconds (process running for 6.903)
+autorizacion-1    | 2026-10-06T01:38:35.534Z  INFO 1 --- [autorizacion] [           main] c.d.b.a.AutorizacionApplication          : Started AutorizacionApplication in 4.847 seconds (process running for 5.431)
+configuracion-1   | 2026-10-06T01:38:35.110Z  INFO 1 --- [configuracion] [           main] c.d.b.c.ConfiguracionApplication         : Started ConfiguracionApplication in 4.497 seconds (process running for 5.101)
+consultas-1       | 2026-10-06T01:38:46.048Z  INFO 1 --- [consultas] [           main] c.d.b.consultas.ConsultasApplication     : Started ConsultasApplication in 4.215 seconds (process running for 4.687)
+solicitudes-1     | 2026-10-06T01:38:54.828Z  INFO 1 --- [solicitudes] [           main] c.d.b.s.SolicitudesApplication           : Started SolicitudesApplication in 7.228 seconds (process running for 7.722)
+descubrimiento-1  | 2026-10-06T01:38:37.083Z  INFO 1 --- [descubrimiento] [           main] c.d.b.d.DescubrimientoApplication        : Started DescubrimientoApplication in 6.3 seconds (process running for 6.958)
+consultas-1       | 2026-10-06T01:39:49.944Z  INFO 1 --- [consultas] [           main] c.d.b.consultas.ConsultasApplication     : Started ConsultasApplication in 3.691 seconds (process running for 4.226)
+
+RESULTADOS DEL PROCESADOR
+batch-1           | 2026-10-06T01:38:57.231Z  INFO 1 --- [banco-xyz-batch] [ntContainer#0-1] c.d.b.batch.config.BatchConfiguration    : Job finalizado: transaccionesJob - estado=COMPLETED - omitidos=1
+batch-1           | 2026-10-06T01:38:59.044Z  INFO 1 --- [banco-xyz-batch] [ntContainer#0-1] c.d.b.batch.config.BatchConfiguration    : Job finalizado: interesesJob - estado=COMPLETED - omitidos=4
+batch-1           | 2026-10-06T01:39:00.050Z  INFO 1 --- [banco-xyz-batch] [ntContainer#0-1] c.d.b.batch.config.BatchConfiguration    : Job finalizado: estadosAnualesJob - estado=COMPLETED - omitidos=1
+batch-1           | 2026-10-06T01:40:02.504Z  INFO 1 --- [banco-xyz-batch] [ntContainer#0-2] c.d.b.batch.config.BatchConfiguration    : Job finalizado: interesesJob - estado=COMPLETED - omitidos=4
+
+PRUEBAS: 65 | fallos=0 | errores=0
+
+PERSISTENCIA
+     job_name      |  status   |         start_time         |          end_time
+-------------------+-----------+----------------------------+----------------------------
+ interesesJob      | COMPLETED | 2026-10-06 01:40:02.419268 | 2026-10-06 01:40:02.504807
+ estadosAnualesJob | COMPLETED | 2026-10-06 01:38:59.958145 | 2026-10-06 01:39:00.050784
+ interesesJob      | COMPLETED | 2026-10-06 01:38:58.94793  | 2026-10-06 01:38:59.044076
+ transaccionesJob  | COMPLETED | 2026-10-06 01:38:57.013779 | 2026-10-06 01:38:57.229304
+ interesesJob      | COMPLETED | 2026-10-06 01:35:50.111281 | 2026-10-06 01:35:50.173281
+ estadosAnualesJob | COMPLETED | 2026-10-06 01:35:15.654682 | 2026-10-06 01:35:15.72485
+ interesesJob      | COMPLETED | 2026-10-06 01:35:14.64278  | 2026-10-06 01:35:14.724608
+ transaccionesJob  | COMPLETED | 2026-10-06 01:35:13.631762 | 2026-10-06 01:35:13.814454
+(8 rows)
+
+                  id                  |     proceso     |  estado   |           creada           | job_execution_id | estado_ejecucion
+--------------------------------------+-----------------+-----------+----------------------------+------------------+------------------
+ b2cf33c1-c12b-4116-ab3b-cd9ad454c55a | intereses       | COMPLETED | 2026-10-06 01:39:56.06045  |                8 | COMPLETED
+ 73d3e95f-8fd4-4ba1-8d04-4dd03ac32758 | estados-anuales | COMPLETED | 2026-10-06 01:38:59.105702 |                7 | COMPLETED
+ 44afd45c-0103-4d48-92cd-f105b32d8bb6 | intereses       | COMPLETED | 2026-10-06 01:38:58.066244 |                6 | COMPLETED
+ 55e8130b-6e77-48f4-8c14-051b236f32d3 | transacciones   | COMPLETED | 2026-10-06 01:38:55.955723 |                5 | COMPLETED
+ 2e41600d-b21c-4c0f-97b5-b1a329c88b28 | intereses       | COMPLETED | 2026-10-06 01:35:41.49088  |                4 | COMPLETED
+ d6594af7-aa13-4846-b3f7-fd258ead8282 | estados-anuales | COMPLETED | 2026-10-06 01:35:15.064975 |                3 | COMPLETED
+ 801b461b-5f80-46fb-965a-7847bcae4b37 | intereses       | COMPLETED | 2026-10-06 01:35:14.040568 |                2 | COMPLETED
+ bd70423b-bdb3-4866-a229-3391aa6871b1 | transacciones   | COMPLETED | 2026-10-06 01:35:12.952531 |                1 | COMPLETED
+(8 rows)
+
+             solicitud_id             | ejecuciones
+--------------------------------------+-------------
+ 2e41600d-b21c-4c0f-97b5-b1a329c88b28 |           1
+ 44afd45c-0103-4d48-92cd-f105b32d8bb6 |           1
+ 55e8130b-6e77-48f4-8c14-051b236f32d3 |           1
+ 73d3e95f-8fd4-4ba1-8d04-4dd03ac32758 |           1
+ 801b461b-5f80-46fb-965a-7847bcae4b37 |           1
+ b2cf33c1-c12b-4116-ab3b-cd9ad454c55a |           1
+ bd70423b-bdb3-4866-a229-3391aa6871b1 |           1
+ d6594af7-aa13-4846-b3f7-fd258ead8282 |           1
+(8 rows)
+
+      resultado      | cantidad
+---------------------+----------
+ transacciones       |        9
+ intereses           |        4
+ movimientos_anuales |        8
+ estados_anuales     |        7
+(4 rows)
+
+  tipo   | cantidad | monto_total | anomalias
+---------+----------+-------------+-----------
+ credito |        4 |     4500.00 |         0
+ debito  |        5 |     4500.00 |         2
+(2 rows)
+
+ id |   fecha    |  monto  |  tipo   | anomalia
+----+------------+---------+---------+----------
+  1 | 2024-01-01 | 1000.00 | debito  | f
+  2 | 2024-01-02 | 1500.00 | credito | f
+  3 | 2024-01-03 | -200.00 | debito  | t
+  4 | 2024-01-03 |    0.00 | debito  | t
+  5 | 2024-01-04 |  800.00 | credito | f
+  6 | 2024-01-05 |  700.00 | debito  | f
+  7 | 2024-01-06 | 1200.00 | credito | f
+  9 | 2024-01-07 | 3000.00 | debito  | f
+ 10 | 2024-01-08 | 1000.00 | credito | f
+(9 rows)
+
+ cuenta_id |    nombre    | saldo_inicial | edad |   tipo   |   tasa   | interes | saldo_final
+-----------+--------------+---------------+------+----------+----------+---------+-------------
+       101 | John Doe     |       5000.00 |   30 | ahorro   | 0.010000 |   50.00 |     5050.00
+       102 | Jane Smith   |       8000.00 |   25 | prestamo | 0.020000 |  160.00 |     8160.00
+       103 | Bob Johnson  |      12000.00 |   30 | prestamo | 0.020000 |  240.00 |    12240.00
+       107 | Diana Prince |      15000.00 |   40 | prestamo | 0.020000 |  300.00 |    15300.00
+(4 rows)
+
+ id | cuenta_id |   fecha    | transaccion |  monto  |      descripcion
+----+-----------+------------+-------------+---------+-----------------------
+  9 |       101 | 2024-01-01 | deposito    | 1000.00 | Ingreso mensual
+ 10 |       101 | 2024-03-15 | retiro      | -500.00 | Retiro parcial
+ 11 |       102 | 2024-05-22 | deposito    | 1500.00 | Ingreso mensual
+ 13 |       103 | 2024-07-10 | deposito    | 2000.00 | Ingreso mensual
+ 15 |       104 | 2024-09-05 | compra      | -100.00 | Compra en tienda
+ 16 |       105 | 2024-10-01 | deposito    | 2500.00 | Ingreso extra
+ 12 |       106 | 2024-11-20 | deposito    | 3000.00 | Ingreso mensual
+ 14 |       108 | 2024-12-31 | deposito    | 2000.00 | Ingreso de fin de ano
+(8 rows)
+
+ cuenta_id | anio | cantidad_movimientos | total_depositos | total_cargos | saldo_anual
+-----------+------+----------------------+-----------------+--------------+-------------
+       101 | 2024 |                    2 |         1000.00 |       500.00 |      500.00
+       102 | 2024 |                    1 |         1500.00 |         0.00 |     1500.00
+       103 | 2024 |                    1 |         2000.00 |         0.00 |     2000.00
+       104 | 2024 |                    1 |            0.00 |       100.00 |     -100.00
+       105 | 2024 |                    1 |         2500.00 |         0.00 |     2500.00
+       106 | 2024 |                    1 |         3000.00 |         0.00 |     3000.00
+       108 | 2024 |                    1 |         2000.00 |         0.00 |     2000.00
+(7 rows)
+
+        job        | rechazados
+-------------------+------------
+ estadosAnualesJob |          1
+ interesesJob      |          4
+ transaccionesJob  |          1
+(3 rows)
+
+        job        |     etapa     |                                                                 datos                                                                  |                                                 motivo                                                 |       fecha_rechazo
+-------------------+---------------+----------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------+----------------------------
+ transaccionesJob  | ESCRITURA     | Transaccion[id=8, fecha=2024-01-05, monto=700, tipo=debito, anomalia=false]                                                            | PreparedStatementCallback; SQL [INSERT INTO transacciones_procesadas(id, fecha, monto, tipo, anomalia)+| 2026-10-06 01:38:57.171236
+                   |               |                                                                                                                                        | VALUES (?, ?, ?, ?, ?)                                                                                +|
+                   |               |                                                                                                                                        | ]; ERROR: duplicate key value violates unique constraint "uk_transaccion_logica"                      +|
+                   |               |                                                                                                                                        |   Detail: Key (fecha, monto, tipo)=(2024-01-05, 700.00, debito) already exists.                        |
+ estadosAnualesJob | PROCESAMIENTO | MovimientoAnualCsv[cuentaId=107, fecha=2024-12-25, transaccion=deposito, monto=0, descripcion=Ingreso navideño]                        | Tipo o monto invalido                                                                                  | 2026-10-06 01:39:00.008708
+ interesesJob      | PROCESAMIENTO | InteresCsv[cuentaId=108, nombre=Steve Rogers, saldo=10000, edad=80, tipo=ahorro]                                                       | Saldo o edad fuera de rango                                                                            | 2026-10-06 01:40:02.4806
+ interesesJob      | PROCESAMIENTO | InteresCsv[cuentaId=104, nombre=Alice Brown, saldo=0, edad=45, tipo=ahorro]                                                            | Saldo o edad fuera de rango                                                                            | 2026-10-06 01:40:02.486997
+ interesesJob      | PROCESAMIENTO | InteresCsv[cuentaId=105, nombre=Charlie Green, saldo=7000, edad=35, tipo=hipoteca]                                                     | Tipo de cuenta invalido                                                                                | 2026-10-06 01:40:02.486997
+ interesesJob      | ESCRITURA     | InteresCalculado[cuentaId=106, nombre=John Doe, saldoInicial=5000, edad=30, tipo=ahorro, tasa=0.01, interes=50.00, saldoFinal=5050.00] | PreparedStatementCallback; SQL [INSERT INTO intereses_calculados(                                     +| 2026-10-06 01:40:02.486997
+                   |               |                                                                                                                                        |     cuenta_id, nombre, saldo_inicial, edad, tipo, tasa, interes, saldo_final)                         +|
+                   |               |                                                                                                                                        | VALUES (?, ?, ?, ?, ?, ?, ?, ?)                                                                       +|
+                   |               |                                                                                                                                        | ]; ERROR: duplicate key value violates unique constraint "uk_interes_logico"                          +|
+                   |               |                                                                                                                                        |   Detail: Key (nombre, saldo_inicial, edad, tipo)=(John Doe, 5000.00, 30, ahorro) already exists.      |
+(6 rows)

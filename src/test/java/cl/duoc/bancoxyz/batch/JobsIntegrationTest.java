@@ -27,6 +27,15 @@ class JobsIntegrationTest {
     private final Job estadosAnualesJob;
 
     @Autowired
+    private org.springframework.context.ApplicationContext applicationContext;
+
+    @Test
+    void perfilDefaultMantieneBatchSinWebNiWorker() {
+        assertThat(applicationContext).isNotInstanceOf(org.springframework.web.context.WebApplicationContext.class);
+        assertThat(applicationContext.getBeansOfType(cl.duoc.bancoxyz.batch.worker.ProcesosWorker.class)).isEmpty();
+    }
+
+    @Autowired
     JobsIntegrationTest(JobLauncher jobLauncher, JdbcTemplate jdbcTemplate,
                         @Qualifier("transaccionesJob") Job transaccionesJob,
                         @Qualifier("interesesJob") Job interesesJob,

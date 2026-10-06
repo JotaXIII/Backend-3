@@ -1,0 +1,108 @@
+{
+  "fecha": "2026-10-05T22:39:24.0819825-03:00",
+  "comandos": [
+    "mvn test",
+    "mvn -f cloud/pom.xml test"
+  ],
+  "pruebas": 65,
+  "fallos": 0,
+  "errores": 0,
+  "suites": [
+    {
+      "nombre": "cl.duoc.bancoxyz.batch.CloudProfileTest",
+      "pruebas": 2,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0,
+      "segundos": 3.579
+    },
+    {
+      "nombre": "cl.duoc.bancoxyz.batch.JobsIntegrationTest",
+      "pruebas": 2,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0,
+      "segundos": 0.48
+    },
+    {
+      "nombre": "cl.duoc.bancoxyz.batch.processor.InteresProcessorTest",
+      "pruebas": 2,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0,
+      "segundos": 0.002
+    },
+    {
+      "nombre": "cl.duoc.bancoxyz.batch.processor.MovimientoAnualProcessorTest",
+      "pruebas": 2,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0,
+      "segundos": 0.006
+    },
+    {
+      "nombre": "cl.duoc.bancoxyz.batch.processor.TransaccionProcessorTest",
+      "pruebas": 2,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0,
+      "segundos": 0.004
+    },
+    {
+      "nombre": "cl.duoc.bancoxyz.batch.worker.ProcesosWorkerTest",
+      "pruebas": 9,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0,
+      "segundos": 0.529
+    },
+    {
+      "nombre": "cl.duoc.bancoxyz.autorizacion.AutorizacionIntegrationTest",
+      "pruebas": 6,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0,
+      "segundos": 3.846
+    },
+    {
+      "nombre": "cl.duoc.bancoxyz.comun.JwtValidationTest",
+      "pruebas": 4,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0,
+      "segundos": 0.894
+    },
+    {
+      "nombre": "cl.duoc.bancoxyz.consultas.ConsultaControllerTest",
+      "pruebas": 11,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0,
+      "segundos": 3.616
+    },
+    {
+      "nombre": "cl.duoc.bancoxyz.solicitudes.ConsultaServiceTest",
+      "pruebas": 8,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0,
+      "segundos": 1.475
+    },
+    {
+      "nombre": "cl.duoc.bancoxyz.solicitudes.SolicitudControllerTest",
+      "pruebas": 8,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0,
+      "segundos": 2.44
+    },
+    {
+      "nombre": "cl.duoc.bancoxyz.solicitudes.SolicitudServiceTest",
+      "pruebas": 9,
+      "fallos": 0,
+      "errores": 0,
+      "omitidas": 0,
+      "segundos": 0.433
+    }
+  ]
+}

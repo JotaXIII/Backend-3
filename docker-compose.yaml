@@ -1,0 +1,176 @@
+name: exp3_s8_juancarlos_osega
+
+x-health: &health
+  test: ["CMD-SHELL", "curl -fsS http://localhost:$${PORT}/actuator/health > /dev/null"]
+  interval: 10s
+  timeout: 5s
+  retries: 15
+  start_period: 45s
+
+x-api-env: &api-env
+  CONFIG_URL: http://configuracion:8888
+  EUREKA_URL: http://descubrimiento:8761/eureka/
+  OAUTH_ISSUER: ${OAUTH_ISSUER:-http://localhost:9000}
+  OAUTH_JWK_URI: http://autorizacion:9000/oauth2/jwks
+  DB_URL: jdbc:postgresql://postgres:5432/banco_xyz
+  DB_USER: banco
+  DB_PASSWORD: ${DB_PASSWORD:-banco123}
+  JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: banco_xyz
+      POSTGRES_USER: banco
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-banco123}
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banco -d banco_xyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    volumes:
+      - datos:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  mensajeria:
+    image: apache/activemq-artemis:2.41.0
+    environment:
+      ARTEMIS_USER: app
+      ARTEMIS_PASSWORD: ${JMS_PASSWORD:-mensajeria-local}
+      ANONYMOUS_LOGIN: "false"
+    ports:
+      - "127.0.0.1:61616:61616"
+      - "127.0.0.1:8161:8161"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/61616'"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    volumes:
+      - mensajes:/var/lib/artemis-instance
+    restart: unless-stopped
+
+  autorizacion:
+    image: banco-xyz/autorizacion:1.0.0
+    build:
+      context: .
+      dockerfile: cloud/Dockerfile
+      args:
+        SERVICE: autorizacion
+    environment:
+      PORT: 9000
+      OAUTH_ISSUER: ${OAUTH_ISSUER:-http://localhost:9000}
+      OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:-operador-local}
+      OAUTH_READER_SECRET: ${OAUTH_READER_SECRET:-lector-local}
+    ports:
+      - "9000:9000"
+    healthcheck: *health
+    restart: unless-stopped
+
+  descubrimiento:
+    image: banco-xyz/descubrimiento:1.0.0
+    build:
+      context: .
+      dockerfile: cloud/Dockerfile
+      args:
+        SERVICE: descubrimiento
+    environment:
+      PORT: 8761
+    ports:
+      - "127.0.0.1:8761:8761"
+    healthcheck: *health
+    restart: unless-stopped
+
+  configuracion:
+    image: banco-xyz/configuracion:1.0.0
+    build:
+      context: .
+      dockerfile: cloud/Dockerfile
+      args:
+        SERVICE: configuracion
+    environment:
+      PORT: 8888
+    ports:
+      - "127.0.0.1:8888:8888"
+    healthcheck: *health
+    restart: unless-stopped
+
+  batch:
+    image: banco-xyz/batch:1.0.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      PORT: 8082
+      DB_URL: jdbc:postgresql://postgres:5432/banco_xyz
+      DB_USER: banco
+      DB_PASSWORD: ${DB_PASSWORD:-banco123}
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70
+      JMS_URL: tcp://mensajeria:61616
+      JMS_USER: app
+      JMS_PASSWORD: ${JMS_PASSWORD:-mensajeria-local}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mensajeria:
+        condition: service_healthy
+    healthcheck: *health
+    volumes:
+      - reportes:/app/build/reportes
+    restart: unless-stopped
+
+  consultas:
+    image: banco-xyz/consultas:1.0.0
+    build:
+      context: .
+      dockerfile: cloud/Dockerfile
+      args:
+        SERVICE: consultas
+    environment:
+      <<: *api-env
+      PORT: 8081
+    depends_on:
+      configuracion:
+        condition: service_healthy
+      descubrimiento:
+        condition: service_healthy
+      autorizacion:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      batch:
+        condition: service_healthy
+    healthcheck: *health
+    restart: unless-stopped
+
+  solicitudes:
+    image: banco-xyz/solicitudes:1.0.0
+    build:
+      context: .
+      dockerfile: cloud/Dockerfile
+      args:
+        SERVICE: solicitudes
+    environment:
+      <<: *api-env
+      PORT: 8080
+      JMS_URL: tcp://mensajeria:61616
+      JMS_USER: app
+      JMS_PASSWORD: ${JMS_PASSWORD:-mensajeria-local}
+    ports:
+      - "8080:8080"
+    depends_on:
+      consultas:
+        condition: service_healthy
+      mensajeria:
+        condition: service_healthy
+    healthcheck: *health
+    restart: unless-stopped
+
+volumes:
+  datos:
+  mensajes:
+  reportes:

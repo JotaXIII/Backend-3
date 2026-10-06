@@ -1,0 +1,143 @@
+{
+  "fecha": "2026-10-05T22:40:07.2743760-03:00",
+  "verificaciones": [
+    {
+      "caso": "Sin token",
+      "resultado": 401
+    },
+    {
+      "caso": "Firma invalida",
+      "resultado": 401
+    },
+    {
+      "caso": "Permiso insuficiente",
+      "resultado": 403
+    },
+    {
+      "caso": "Proceso invalido",
+      "resultado": 400
+    },
+    {
+      "caso": "JMS transacciones",
+      "resultado": "COMPLETED"
+    },
+    {
+      "caso": "JMS intereses",
+      "resultado": "COMPLETED"
+    },
+    {
+      "caso": "JMS estados-anuales",
+      "resultado": "COMPLETED"
+    },
+    {
+      "caso": "Propietario distinto",
+      "resultado": 404
+    },
+    {
+      "caso": "Resultados transacciones",
+      "resultado": 9
+    },
+    {
+      "caso": "Resultados intereses",
+      "resultado": 4
+    },
+    {
+      "caso": "Resultados estados-anuales",
+      "resultado": 7
+    },
+    {
+      "caso": "Solicitud repetida",
+      "resultado": "Una ejecucion"
+    },
+    {
+      "caso": "Servicio detenido",
+      "resultado": "Fallback y circuito OPEN"
+    },
+    {
+      "caso": "Servicio recuperado",
+      "resultado": "CLOSED"
+    },
+    {
+      "caso": "Broker detenido",
+      "resultado": "Solicitud PENDIENTE"
+    },
+    {
+      "caso": "Broker recuperado",
+      "resultado": "COMPLETED"
+    }
+  ],
+  "contenedores": [
+    {
+      "Service": "autorizacion",
+      "Image": "banco-xyz/autorizacion:1.0.0",
+      "State": "running",
+      "Health": "healthy",
+      "ID": "7017f79e0ffa",
+      "CreatedAt": "2026-10-05 22:38:12 -0300 -03",
+      "Ports": "0.0.0.0:9000->9000/tcp, [::]:9000->9000/tcp"
+    },
+    {
+      "Service": "batch",
+      "Image": "banco-xyz/batch:1.0.0",
+      "State": "running",
+      "Health": "healthy",
+      "ID": "7578b6c5f072",
+      "CreatedAt": "2026-10-05 22:38:12 -0300 -03",
+      "Ports": "8082/tcp"
+    },
+    {
+      "Service": "configuracion",
+      "Image": "banco-xyz/configuracion:1.0.0",
+      "State": "running",
+      "Health": "healthy",
+      "ID": "5297873bdca1",
+      "CreatedAt": "2026-10-05 22:38:12 -0300 -03",
+      "Ports": "127.0.0.1:8888->8888/tcp"
+    },
+    {
+      "Service": "consultas",
+      "Image": "banco-xyz/consultas:1.0.0",
+      "State": "running",
+      "Health": "healthy",
+      "ID": "016c8fc16cf8",
+      "CreatedAt": "2026-10-05 22:38:14 -0300 -03",
+      "Ports": ""
+    },
+    {
+      "Service": "descubrimiento",
+      "Image": "banco-xyz/descubrimiento:1.0.0",
+      "State": "running",
+      "Health": "healthy",
+      "ID": "c7e2cc6050c2",
+      "CreatedAt": "2026-10-05 22:38:12 -0300 -03",
+      "Ports": "127.0.0.1:8761->8761/tcp"
+    },
+    {
+      "Service": "mensajeria",
+      "Image": "apache/activemq-artemis:2.41.0",
+      "State": "running",
+      "Health": "healthy",
+      "ID": "080001c0c351",
+      "CreatedAt": "2026-10-05 22:31:41 -0300 -03",
+      "Ports": "127.0.0.1:8161->8161/tcp, 127.0.0.1:61616->61616/tcp"
+    },
+    {
+      "Service": "postgres",
+      "Image": "postgres:17-alpine",
+      "State": "running",
+      "Health": "healthy",
+      "ID": "c14272dbeb0f",
+      "CreatedAt": "2026-10-05 22:31:41 -0300 -03",
+      "Ports": "127.0.0.1:5433->5432/tcp"
+    },
+    {
+      "Service": "solicitudes",
+      "Image": "banco-xyz/solicitudes:1.0.0",
+      "State": "running",
+      "Health": "healthy",
+      "ID": "d55ab4658c07",
+      "CreatedAt": "2026-10-05 22:38:21 -0300 -03",
+      "Ports": "0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp"
+    }
+  ]
+}

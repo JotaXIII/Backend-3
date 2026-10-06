@@ -17,7 +17,7 @@ import java.util.logging.Logger;
 public class BatchConfiguration {
 
     @Bean
-    // Limita la ejecución paralela a tres hilos reutilizables.
+    // Limita la ejecución paralela al número de hilos configurado.
     public TaskExecutor batchTaskExecutor(@Value("${app.batch.threads:3}") int threads) {
         var executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(threads);
@@ -44,6 +44,7 @@ public class BatchConfiguration {
                 logger.info(() -> "Job finalizado: " + jobExecution.getJobInstance().getJobName()
                         + " - estado=" + jobExecution.getStatus()
                         + " - omitidos=" + jobExecution.getStepExecutions().stream()
+                        .filter(step -> !step.getStepName().endsWith("PartitionedStep"))
                         .mapToLong(step -> step.getSkipCount()).sum());
             }
         };
