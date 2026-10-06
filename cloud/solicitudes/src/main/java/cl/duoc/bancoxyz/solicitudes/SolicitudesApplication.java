@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @Import(SeguridadConfiguration.class)
 @EnableScheduling
-// Inicia el servicio y carga su configuración.
+// Configuración de inicio.
 public class SolicitudesApplication {
 
     public static void main(String[] args) {

@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Import;
 
 @SpringBootApplication
 @Import(SeguridadConfiguration.class)
-// Inicia el servicio y carga su configuración.
+// Configuración de inicio.
 public class ConsultasApplication {
 
     public static void main(String[] args) {

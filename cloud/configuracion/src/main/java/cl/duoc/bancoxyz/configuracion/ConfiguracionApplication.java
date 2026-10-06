@@ -6,7 +6,7 @@ import org.springframework.cloud.config.server.EnableConfigServer;
 
 @SpringBootApplication
 @EnableConfigServer
-// Inicia el servicio y carga su configuración.
+// Configuración de inicio.
 public class ConfiguracionApplication {
 
     public static void main(String[] args) {

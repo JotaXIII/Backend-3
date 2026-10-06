@@ -32,7 +32,7 @@ public class ProcesosWorker {
         this.mapper = mapper;
     }
 
-    // Ejecuta una solicitud y publica su estado terminal.
+    // Procesamiento asíncrono y estado terminal.
     @JmsListener(destination = "procesos.solicitudes", containerFactory = "cloudJmsListenerContainerFactory")
     public void recibir(String mensaje) throws Exception {
         var solicitud = mapper.readTree(mensaje);

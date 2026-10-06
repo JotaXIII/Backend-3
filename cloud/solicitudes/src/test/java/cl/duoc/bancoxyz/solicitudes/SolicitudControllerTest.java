@@ -105,7 +105,7 @@ class SolicitudControllerTest {
     }
 
     private void tokenRemoto() {
-        // Simula la decodificacion del token Bearer.
+        // Decodificación de prueba.
         when(decoder.decode("remoto")).thenReturn(Jwt
                 .withTokenValue("remoto").header("alg", "RS256").subject("lector")
                 .claim("scope", "datos.read").build());

@@ -19,7 +19,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
-// Valida la firma, vigencia, emisor y destinatario del token.
+// Firma, vigencia, emisor y destinatario válidos.
 public class SeguridadConfiguration {
 
     @Bean
@@ -35,7 +35,7 @@ public class SeguridadConfiguration {
     }
 
     @Bean
-    // Restringe cada operación al permiso requerido.
+    // Permisos por operación.
     public SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
         return http.csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

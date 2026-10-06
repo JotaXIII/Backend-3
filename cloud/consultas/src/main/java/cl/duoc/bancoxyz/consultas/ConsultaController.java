@@ -14,7 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-// Expone resultados persistidos con lectura paginada.
+// Resultados persistidos paginados.
 public class ConsultaController {
 
     private final JdbcTemplate jdbcTemplate;

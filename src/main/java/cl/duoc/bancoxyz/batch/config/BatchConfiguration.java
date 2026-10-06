@@ -13,11 +13,11 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.logging.Logger;
 
 @Configuration
-// Define los recursos compartidos por los procesos batch.
+// Recursos compartidos del procesamiento por lotes.
 public class BatchConfiguration {
 
     @Bean
-    // Limita la ejecución paralela al número de hilos configurado.
+    // Paralelismo limitado por configuración.
     public TaskExecutor batchTaskExecutor(@Value("${app.batch.threads:3}") int threads) {
         var executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(threads);
@@ -29,7 +29,7 @@ public class BatchConfiguration {
     }
 
     @Bean
-    // Registra el inicio, término, estado y omisiones de cada Job.
+    // Trazabilidad de ejecución y omisiones.
     public JobExecutionListener batchJobLogListener() {
         return new JobExecutionListener() {
             private final Logger logger = Logger.getLogger(BatchConfiguration.class.getName());
@@ -52,7 +52,7 @@ public class BatchConfiguration {
 
     public static <T> SynchronizedItemStreamReader<T> synchronizedReader(
             org.springframework.batch.item.ItemStreamReader<T> reader) {
-        // Protege la lectura compartida cuando varios hilos procesan chunks.
+        // Lectura compartida sincronizada.
         return new SynchronizedItemStreamReaderBuilder<T>()
                 .delegate(reader)
                 .build();

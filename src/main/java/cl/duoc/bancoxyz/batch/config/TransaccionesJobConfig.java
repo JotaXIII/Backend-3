@@ -33,11 +33,11 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.util.Map;
 
 @Configuration
-// Configura la lectura, transformación y resumen de transacciones.
+// Lectura, transformación y resumen de transacciones.
 public class TransaccionesJobConfig {
 
     @Bean
-    // Ejecuta las etapas del procesamiento en el orden definido.
+    // Etapas de procesamiento secuenciales.
     public Job transaccionesJob(JobRepository repository, Step limpiarTransaccionesStep,
                                 Step procesarTransaccionesPartitionedStep, Step resumenTransaccionesStep,
                                 org.springframework.batch.core.JobExecutionListener batchJobLogListener) {
@@ -51,7 +51,7 @@ public class TransaccionesJobConfig {
     }
 
     @Bean
-    // Elimina los resultados anteriores antes de iniciar una ejecución.
+    // Resultados independientes por ejecución.
     public Step limpiarTransaccionesStep(JobRepository repository,
                                          PlatformTransactionManager transactionManager,
                                          JdbcTemplate jdbcTemplate) {
@@ -66,7 +66,7 @@ public class TransaccionesJobConfig {
     }
 
     @Bean
-    // Worker: cada instancia procesa el rango asignado por el particionador.
+    // Rango de registros por partición.
     public Step procesarTransaccionesStep(JobRepository repository,
                                            PlatformTransactionManager transactionManager,
                                            FlatFileItemReader<TransaccionCsv> transaccionesReader,
@@ -113,7 +113,7 @@ public class TransaccionesJobConfig {
     }
 
     @Bean
-    // Agrupa las transacciones procesadas por tipo.
+    // Resumen de transacciones por tipo.
     public Step resumenTransaccionesStep(JobRepository repository,
                                           PlatformTransactionManager transactionManager,
                                           JdbcTemplate jdbcTemplate) {
@@ -131,7 +131,7 @@ public class TransaccionesJobConfig {
     }
 
     @Bean
-    // Lee los campos de cada transacción desde un archivo delimitado.
+    // Entrada de transacciones delimitada.
     @StepScope
     public FlatFileItemReader<TransaccionCsv> transaccionesReader(
             @Value("${app.archivos.transacciones}") Resource resource,
@@ -153,7 +153,7 @@ public class TransaccionesJobConfig {
     }
 
     @Bean
-    // Inserta las transacciones válidas en la base de datos.
+    // Persistencia de transacciones válidas.
     public JdbcBatchItemWriter<Transaccion> transaccionesWriter(javax.sql.DataSource dataSource) {
         return new JdbcBatchItemWriterBuilder<Transaccion>()
                 .dataSource(dataSource)

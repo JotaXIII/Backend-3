@@ -4,7 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-// Inicia el servicio y carga su configuración.
+// Configuración de inicio.
 public class AutorizacionApplication {
 
     public static void main(String[] args) {

@@ -16,7 +16,7 @@ public class InteresProcessor implements ItemProcessor<InteresCsv, InteresCalcul
             "ahorro", new BigDecimal("0.01"),
             "prestamo", new BigDecimal("0.02"));
     @Override
-    // Valida la cuenta y calcula el interés y el saldo final.
+    // Cuenta válida, interés y saldo final.
     public InteresCalculado process(InteresCsv item) {
         if (item.cuentaId() == null || esVacio(item.nombre()) || esVacio(item.saldo())
                 || esVacio(item.edad()) || esVacio(item.tipo())) {

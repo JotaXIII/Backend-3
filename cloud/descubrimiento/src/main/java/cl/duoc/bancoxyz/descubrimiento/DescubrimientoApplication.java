@@ -6,7 +6,7 @@ import org.springframework.cloud.netflix.eureka.server.EnableEurekaServer;
 
 @SpringBootApplication
 @EnableEurekaServer
-// Inicia el servicio y carga su configuración.
+// Configuración de inicio.
 public class DescubrimientoApplication {
 
     public static void main(String[] args) {

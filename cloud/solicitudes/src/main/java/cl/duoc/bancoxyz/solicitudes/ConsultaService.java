@@ -20,7 +20,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 @Service
-// Limita esperas y ofrece una respuesta temporal ante fallos remotos.
+// Tiempos limitados y respuesta alternativa.
 public class ConsultaService {
 
     private final RestClient restClient;

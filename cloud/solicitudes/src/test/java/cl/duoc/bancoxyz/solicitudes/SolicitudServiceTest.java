@@ -37,7 +37,7 @@ class SolicitudServiceTest {
         var datasource = new DriverManagerDataSource("jdbc:h2:mem:" + UUID.randomUUID()
                 + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
         jdbc = new JdbcTemplate(datasource);
-        // Inicializa la persistencia de prueba.
+        // Persistencia de prueba.
         jdbc.execute("CREATE TABLE solicitudes (id VARCHAR(36) PRIMARY KEY, proceso VARCHAR(50) NOT NULL, "
                 + "propietario VARCHAR(100) NOT NULL, estado VARCHAR(20) NOT NULL, creada TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
         jms = mock(JmsTemplate.class);
@@ -77,7 +77,7 @@ class SolicitudServiceTest {
             assertThat(estado(id)).isEqualTo("PENDIENTE");
             return null;
         }).when(jms).convertAndSend(eq("procesos.solicitudes"), anyString());
-        // Una nueva instancia debe recuperar la solicitud persistida.
+        // Persistencia entre instancias.
         new SolicitudService(jdbc, jms, mapper).publicarPendientes();
         assertThat(estado(id)).isEqualTo("ENVIADA");
         service.publicarPendientes();

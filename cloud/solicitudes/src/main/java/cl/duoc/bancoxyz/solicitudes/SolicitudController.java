@@ -18,7 +18,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-// Recibe solicitudes y reúne las consultas del cliente.
+// Solicitudes y consultas autenticadas.
 public class SolicitudController {
 
     private final SolicitudService solicitudes;

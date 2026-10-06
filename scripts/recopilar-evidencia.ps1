@@ -38,7 +38,7 @@ if ($LASTEXITCODE -ne 0) { throw "No fue posible verificar la persistencia" }
 $images = @(docker compose -f $composeFile images)
 if ($LASTEXITCODE -ne 0) { throw "No fue posible listar las imagenes" }
 
-# Conserva salidas verificables sin incluir secretos.
+# Evidencia sin secretos.
 $lines.Add("EVIDENCIA DE EJECUCION - SEMANA 8")
 $lines.Add("Rama: $branch")
 $lines.Add("OAuth2: client_credentials | Bearer | scope=$($token.scope) | expires_in=$($token.expires_in)")

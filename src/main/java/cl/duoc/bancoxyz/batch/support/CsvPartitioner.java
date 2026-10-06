@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Divide un CSV en rangos de registros, excluyendo la cabecera. */
+/** Rangos de registros sin cabecera. */
 public final class CsvPartitioner implements Partitioner {
     private final Resource resource;
     private final int gridSize;

@@ -36,11 +36,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 @Configuration
-// Configura la carga de movimientos y la generación de estados anuales.
+// Movimientos y estados anuales.
 public class EstadosAnualesJobConfig {
 
     @Bean
-    // Ejecuta la limpieza, carga y generación del informe.
+    // Etapas del informe anual secuenciales.
     public Job estadosAnualesJob(JobRepository repository, Step limpiarEstadosAnualesStep,
                                  Step procesarEstadosAnualesPartitionedStep, Step generarEstadosAnualesStep,
                                  org.springframework.batch.core.JobExecutionListener batchJobLogListener) {
@@ -54,7 +54,7 @@ public class EstadosAnualesJobConfig {
     }
 
     @Bean
-    // Elimina los resultados anteriores del proceso anual.
+    // Resultados anuales independientes por ejecución.
     public Step limpiarEstadosAnualesStep(JobRepository repository,
                                           PlatformTransactionManager transactionManager,
                                           JdbcTemplate jdbcTemplate) {
@@ -69,7 +69,7 @@ public class EstadosAnualesJobConfig {
     }
 
     @Bean
-    // Valida y almacena los movimientos en chunks de cinco registros.
+    // Movimientos válidos en bloques de cinco registros.
     public Step procesarEstadosAnualesStep(JobRepository repository,
                                             PlatformTransactionManager transactionManager,
                                             FlatFileItemReader<MovimientoAnualCsv> movimientosAnualesReader,
@@ -116,7 +116,7 @@ public class EstadosAnualesJobConfig {
     }
 
     @Bean
-    // Consolida los movimientos por cuenta y año.
+    // Movimientos consolidados por cuenta y año.
     public Step generarEstadosAnualesStep(JobRepository repository,
                                            PlatformTransactionManager transactionManager,
                                            JdbcTemplate jdbcTemplate,
@@ -139,7 +139,7 @@ public class EstadosAnualesJobConfig {
     }
 
     @Bean
-    // Lee los movimientos desde un archivo delimitado.
+    // Entrada de movimientos delimitada.
     @StepScope
     public FlatFileItemReader<MovimientoAnualCsv> movimientosAnualesReader(
             @Value("${app.archivos.cuentas-anuales}") Resource resource,
@@ -162,7 +162,7 @@ public class EstadosAnualesJobConfig {
     }
 
     @Bean
-    // Inserta los movimientos válidos en la base de datos.
+    // Persistencia de movimientos válidos.
     public JdbcBatchItemWriter<MovimientoAnual> movimientosAnualesWriter(javax.sql.DataSource dataSource) {
         return new JdbcBatchItemWriterBuilder<MovimientoAnual>()
                 .dataSource(dataSource)
@@ -175,7 +175,7 @@ public class EstadosAnualesJobConfig {
     }
 
     private void escribirInforme(JdbcTemplate jdbcTemplate, Path ruta) throws Exception {
-        // Escribe el resumen consolidado en formato CSV.
+        // Resumen consolidado en formato CSV.
         Files.createDirectories(ruta.getParent());
         try (BufferedWriter writer = Files.newBufferedWriter(ruta, StandardCharsets.UTF_8)) {
             writer.write("cuenta_id,anio,cantidad_movimientos,total_depositos,total_cargos,saldo_anual");

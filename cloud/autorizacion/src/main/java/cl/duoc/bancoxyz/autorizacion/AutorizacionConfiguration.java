@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Configuration
-// Emite tokens con permisos explícitos para llamadas entre servicios.
+// Tokens con permisos explícitos.
 public class AutorizacionConfiguration {
 
     @Bean
@@ -74,7 +74,7 @@ public class AutorizacionConfiguration {
     }
 
     @Bean
-    // Genera una clave de firma para cada inicio.
+    // Clave de firma temporal.
     public JWKSource<SecurityContext> claves() throws Exception {
         var generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048);

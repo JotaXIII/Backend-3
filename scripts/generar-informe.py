@@ -33,16 +33,37 @@ def generar():
 
     destino = EVIDENCIA / "ejecucion-cloud.pdf"
     estilos = getSampleStyleSheet()
+    estilos["Title"].fontName = "Helvetica-Bold"
+    estilos["Title"].fontSize = 23
+    estilos["Title"].leading = 28
+    estilos["Title"].alignment = 0
+    estilos["Title"].textColor = colors.HexColor("#17354A")
+    estilos["Title"].spaceAfter = 6
+    estilos.add(ParagraphStyle(
+        name="Subtitulo", fontName="Helvetica", fontSize=11, leading=15,
+        textColor=colors.HexColor("#577080"), spaceAfter=14,
+    ))
+    estilos.add(ParagraphStyle(
+        name="CabeceraTabla", fontName="Helvetica-Bold", fontSize=8.5, leading=11,
+        textColor=colors.white,
+    ))
+    estilos.add(ParagraphStyle(
+        name="Celda", fontName="Helvetica", fontSize=8.5, leading=11,
+        textColor=colors.HexColor("#293E4B"),
+    ))
     estilos.add(ParagraphStyle(
         name="Texto", fontName="Helvetica", fontSize=9, leading=12, spaceAfter=7,
     ))
     estilos.add(ParagraphStyle(
         name="Seccion", fontName="Helvetica-Bold", fontSize=11, leading=14,
-        textColor=colors.HexColor("#24465B"), spaceBefore=10, spaceAfter=7,
+        textColor=colors.HexColor("#24465B"), spaceBefore=12, spaceAfter=8,
+        keepWithNext=True,
     ))
     estilos.add(ParagraphStyle(
         name="Consola", fontName="Courier", fontSize=7.6, leading=10,
-        backColor=colors.HexColor("#F3F5F6"), borderPadding=6, spaceAfter=8,
+        textColor=colors.HexColor("#24465B"),
+        backColor=colors.HexColor("#F0F4F7"), borderPadding=7, spaceAfter=10,
+        borderColor=colors.HexColor("#DAE4EB"), borderWidth=0.5,
     ))
     contenido = []
 
@@ -50,20 +71,22 @@ def generar():
         contenido.append(Paragraph(escape(str(valor)), estilos[estilo]))
 
     def tabla(encabezado, filas, anchos):
-        celdas = [[Paragraph(escape(str(valor)), estilos["Texto"]) for valor in encabezado]]
+        celdas = [[Paragraph(escape(str(valor)), estilos["CabeceraTabla"]) for valor in encabezado]]
         celdas.extend([
-            [Paragraph(escape(str(valor)), estilos["Texto"]) for valor in fila]
+            [Paragraph(escape(str(valor)), estilos["Celda"]) for valor in fila]
             for fila in filas
         ])
         bloque = Table(celdas, colWidths=anchos, repeatRows=1, hAlign="LEFT")
         bloque.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E7EEF2")),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#24465B")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+             [colors.white, colors.HexColor("#F3F6F8")]),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#CCD5DC")),
+            ("LINEBELOW", (0, 1), (-1, -1), 0.35, colors.HexColor("#DFE6EB")),
             ("LEFTPADDING", (0, 0), (-1, -1), 7),
             ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+            ("TOPPADDING", (0, 0), (-1, -1), 7),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
         ]))
         contenido.extend([bloque, Spacer(1, 8)])
 
@@ -72,10 +95,8 @@ def generar():
             "<br/>".join(escape(str(linea)) for linea in lineas), estilos["Consola"],
         ))
 
-    texto("EVIDENCIA DE EJECUCIÓN", "Title")
-    texto("Microservicios, seguridad y resiliencia · Semana 8")
-    texto("Rama: " + operativa["rama"])
-    texto("Verificación funcional: " + verificacion["fecha"])
+    texto("Evidencia de ejecución", "Title")
+    texto("Microservicios, seguridad y resiliencia", "Subtitulo")
     texto("Los resultados proceden de una ejecución local real en contenedores. "
           "Las salidas completas y las consultas persistidas acompañan este informe.")
     texto("1. Ejecución y contenedores", "Seccion")
@@ -138,8 +159,8 @@ def generar():
     texto("Una solicitud repetida conserva una única ejecución identificada por "
           "solicitud.id. La caída del broker permite guardar una solicitud pendiente; "
           "su recuperación completa el procesamiento sin reenviarla manualmente.")
-    texto("El informe anual se conserva en el volumen reportes. Las etapas de "
-          "limpieza, particionamiento y generación mantienen el comportamiento previo.")
+    texto("El informe anual permanece en el volumen reportes. El procesamiento "
+          "incluye limpieza, particionamiento y resultados consolidados.")
 
     contenido.append(PageBreak())
     texto("5. Tolerancia a fallos y recuperación", "Seccion")
@@ -166,32 +187,34 @@ def generar():
     ])
     texto("Se comprueban validaciones, ejecución por lotes, consumo y publicación "
           "JMS, persistencia, autorización, scopes y recuperación del circuito.")
-    texto("7. Correspondencia con la pauta", "Seccion")
-    tabla(["Criterio", "Evidencia incluida", "Puntos"], [
-        ["OAuth2", "Emisión, firma y respuestas 401/403", 20],
-        ["Imágenes Docker", "Seis imágenes y servicios saludables", 20],
-        ["Orquestación", "Ocho componentes y dependencias operativas", 20],
-        ["Resilience4j", "Respuesta alternativa y OPEN/CLOSED", 20],
-        ["JMS", "Tres procesos y recuperación del broker", 15],
-        ["Entregables", "Código, README, propuesta y salidas", 5],
-    ], [4 * cm, 11 * cm, 2 * cm])
-    texto("Las evidencias cubren los aspectos de funcionalidad solicitados. La "
-          "calificación corresponde a la revisión del código y su ejecución.")
+    texto("7. Resumen funcional", "Seccion")
+    tabla(["Funcionalidad", "Evidencia"], [
+        ["OAuth2", "Emisión, firma y respuestas 401/403"],
+        ["Imágenes Docker", "Seis imágenes y servicios saludables"],
+        ["Orquestación", "Ocho componentes y dependencias operativas"],
+        ["Resilience4j", "Respuesta alternativa y OPEN/CLOSED"],
+        ["JMS", "Tres procesos y recuperación del broker"],
+    ], [4 * cm, 13 * cm])
     texto("Fuentes: verificacion-cloud.json, pruebas.json, evidencia-operativa.json "
           "y salidas-cloud.txt. El entorno validado es local, de una sola instancia.")
 
     def pie(canvas, documento):
         canvas.saveState()
+        canvas.setStrokeColor(colors.HexColor("#DCE5EB"))
+        canvas.setLineWidth(0.6)
+        canvas.line(2 * cm, 1.7 * cm, A4[0] - 2 * cm, 1.7 * cm)
+        canvas.setFillColor(colors.HexColor("#24465B"))
+        canvas.rect(2 * cm, A4[1] - 0.9 * cm, 1.2 * cm, 0.12 * cm, fill=1, stroke=0)
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor("#53616B"))
-        canvas.drawString(2 * cm, 1.2 * cm, "Evidencia de ejecución · Semana 8")
+        canvas.drawString(2 * cm, 1.2 * cm, "Evidencia de ejecución")
         canvas.drawRightString(A4[0] - 2 * cm, 1.2 * cm, "Página " + str(documento.page))
         canvas.restoreState()
 
     documento = SimpleDocTemplate(
         str(destino), pagesize=A4, rightMargin=2 * cm, leftMargin=2 * cm,
         topMargin=1.5 * cm, bottomMargin=1.8 * cm,
-        title="Evidencia de ejecución - Semana 8", author="",
+        title="Evidencia de ejecución", author="",
     )
     documento.build(contenido, onFirstPage=pie, onLaterPages=pie)
     print("Informe generado:", destino)

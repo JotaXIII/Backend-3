@@ -20,7 +20,7 @@ public final class FechasLegacy {
                 try {
                     return LocalDate.parse(valor.trim(), formato);
                 } catch (DateTimeParseException ignored) {
-                    // Continúa con el siguiente formato permitido.
+                    // Formatos de fecha alternativos.
                 }
             }
         }

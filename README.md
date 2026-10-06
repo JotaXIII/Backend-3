@@ -1,6 +1,6 @@
 # Procesamiento y consultas distribuidas
 
-Conserva los tres procesos por lotes y permite ejecutarlos mediante solicitudes asíncronas. Expone sus resultados con autenticación, permisos de acceso y tolerancia a fallos.
+Tres procesos por lotes con solicitudes asíncronas, consultas autenticadas y tolerancia a fallos.
 
 ## Estructura
 
@@ -12,8 +12,7 @@ Conserva los tres procesos por lotes y permite ejecutarlos mediante solicitudes 
 - `cloud/solicitudes/`: entrada HTTP, publicación y seguimiento de solicitudes.
 - `cloud/comun/`: validación de tokens y permisos.
 - `scripts/verificar.ps1`: comprobación funcional.
-- `docs/`: propuesta técnica y evidencias.
-- `docs/entregables.md`: revisión de la entrega y cobertura de la pauta.
+- `docs/`: consultas SQL y evidencias de ejecución.
 
 ## Ejecutar
 
@@ -88,7 +87,7 @@ Invoke-RestMethod -Uri ("http://localhost:8080/api/solicitudes/" + $solicitud.id
 
 La respuesta inicial es `202 Accepted`. Los estados son `PENDIENTE`, `ENVIADA`, `COMPLETED` y `FAILED`.
 
-Cada proceso conserva chunks de cinco registros, tres particiones, omisión de registros inválidos y reintento de bloqueos. Las ejecuciones se atienden una a una porque cada proceso reemplaza sus resultados anteriores. El informe anual permanece en el volumen `reportes`.
+Cada proceso utiliza chunks de cinco registros, tres particiones, omisión de registros inválidos y reintento de bloqueos. Las ejecuciones se atienden una a una porque cada proceso reemplaza sus resultados anteriores. El informe anual permanece en el volumen `reportes`.
 
 ## Endpoints
 
@@ -129,9 +128,9 @@ powershell -NoProfile -File scripts/verificar.ps1 -ProbarInterrupciones
 
 El script comprueba permisos, resultados, mensajería, propiedad de solicitudes, repetición de mensajes y recuperación. Detiene temporalmente consultas y mensajería y las inicia nuevamente. Guarda los resultados en `docs/evidencia/verificacion-cloud.json`.
 
-`docs/evidencia/ejecucion.pdf` conserva la evidencia previa del procesamiento por lotes. La evidencia nueva corresponde al flujo distribuido. Los informes de pruebas quedan en `target/surefire-reports` de cada módulo.
+Los informes de pruebas quedan en `target/surefire-reports` de cada módulo.
 
-El informe actualizado está en `docs/evidencia/ejecucion-cloud.pdf`. Las salidas completas están en `docs/evidencia/salidas-cloud.txt` y los datos operativos en `docs/evidencia/evidencia-operativa.json`. Incluyen inicio de cada aplicación, imágenes, emisión OAuth2 sin secretos y persistencia de resultados.
+El informe de ejecución está en `docs/evidencia/ejecucion-cloud.pdf`. Las salidas completas están en `docs/evidencia/salidas-cloud.txt` y los datos operativos en `docs/evidencia/evidencia-operativa.json`. Incluyen inicio de cada aplicación, imágenes, emisión OAuth2 sin secretos y persistencia de resultados.
 
 Para actualizar el informe con los componentes en ejecución:
 
@@ -140,7 +139,7 @@ powershell -NoProfile -File scripts/recopilar-evidencia.ps1
 python scripts/generar-informe.py
 ```
 
-La generación del PDF requiere Python con ReportLab. El PDF incluido puede revisarse sin esa dependencia. Las salidas de consola cubren la alternativa de evidencia permitida por las instrucciones; no se requieren capturas adicionales.
+La generación del PDF requiere Python con ReportLab. El PDF incluido puede revisarse sin esa dependencia.
 
 La ejecución verificada reúne 65 pruebas sin fallos ni errores; su resumen está en `docs/evidencia/pruebas.json`.
 
@@ -160,14 +159,12 @@ Para un servidor remoto, configurar `OAUTH_ISSUER` con la dirección pública de
 
 El entorno incluido es una instancia local reproducible. Un despliegue público requiere HTTPS, secretos externos y claves de firma persistentes. Las claves actuales se regeneran al reiniciar autorización; solicitar tokens nuevos tras ese reinicio. La réplica del procesador requiere coordinación adicional para evitar que sus etapas de limpieza se ejecuten simultáneamente.
 
-## Entrega
+## Paquete
 
-Incluir código, documentación y evidencias en la carpeta comprimida `Exp3_S8_JuanCarlos_Osega`. El repositorio conserva el historial de la base. La versión actual corresponde a la rama `feature/semana-8-microservicios` de [Backend-3](https://github.com/JotaXIII/Backend-3/tree/feature/semana-8-microservicios).
+El paquete contiene código, documentación y evidencias, sin cachés, credenciales locales ni archivos de compilación.
 
 Para generar el comprimido sin cachés, credenciales locales ni archivos de compilación:
 
 ```powershell
 powershell -NoProfile -File scripts/empaquetar.ps1
 ```
-
-Los datos incluidos continúan la base de [datos legacy](https://github.com/KariVillagran/bank_legacy_data). Referencias de implementación: [OAuth2](https://docs.spring.io/spring-authorization-server/reference/getting-started.html), [validación JWT](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html), [circuit breaker](https://resilience4j.readme.io/docs/circuitbreaker) y [contenedores de mensajería](https://artemis.apache.org/components/artemis/documentation/latest/docker.html).

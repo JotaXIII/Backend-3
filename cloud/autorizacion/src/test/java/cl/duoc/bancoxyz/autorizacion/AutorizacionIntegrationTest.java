@@ -51,7 +51,7 @@ class AutorizacionIntegrationTest {
         assertThat(claims.getStringListClaim("scope")).containsExactlyInAnyOrder(scopes.split(" "));
         assertThat(claims.getExpirationTime().getTime() - claims.getIssueTime().getTime()).isEqualTo(600_000);
         var jwks = mvc.perform(get("/oauth2/jwks")).andExpect(status().isOk()).andReturn();
-        // Verifica la firma con la clave pública.
+        // Firma criptográfica válida.
         var keys = JWKSet.parse(jwks.getResponse().getContentAsString());
         var key = (RSAKey) keys.getKeyByKeyId(token.getHeader().getKeyID());
         assertThat(key).isNotNull();

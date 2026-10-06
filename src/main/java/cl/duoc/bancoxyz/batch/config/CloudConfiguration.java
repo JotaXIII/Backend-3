@@ -14,7 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @Profile("cloud")
 public class CloudConfiguration {
 
-    // Confirma la solicitud junto con su resultado.
+    // Solicitud y resultado en una misma transacción.
     @Bean
     public DefaultJmsListenerContainerFactory cloudJmsListenerContainerFactory(
             ConnectionFactory connectionFactory, DefaultJmsListenerContainerFactoryConfigurer configurer) {
@@ -32,7 +32,7 @@ public class CloudConfiguration {
         return template;
     }
 
-    // Publica solo la salud del servicio.
+    // Acceso público exclusivo al estado de salud.
     @Bean
     public SecurityFilterChain cloudSecurityFilterChain(HttpSecurity http) throws Exception {
         return http.authorizeHttpRequests(requests -> requests

@@ -12,7 +12,7 @@ $stage = Join-Path ([IO.Path]::GetTempPath()) ("entrega-" + [Guid]::NewGuid().To
 $folder = Join-Path $stage "Exp3_S8_JuanCarlos_Osega"
 New-Item -ItemType Directory -Path $folder | Out-Null
 
-# Reune los archivos de entrega y excluye los resultados temporales.
+# Paquete sin archivos temporales.
 $files = git -C $projectRoot -c core.quotepath=false ls-files --cached --others --exclude-standard
 if ($LASTEXITCODE -ne 0) { throw "No fue posible listar los archivos" }
 foreach ($relative in $files) {

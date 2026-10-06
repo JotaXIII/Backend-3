@@ -31,11 +31,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
-// Configura el cálculo y almacenamiento de intereses.
+// Cálculo y persistencia de intereses.
 public class InteresesJobConfig {
 
     @Bean
-    // Ejecuta la limpieza y el cálculo de intereses en secuencia.
+    // Etapas de intereses secuenciales.
     public Job interesesJob(JobRepository repository, Step limpiarInteresesStep,
                             Step procesarInteresesPartitionedStep,
                             org.springframework.batch.core.JobExecutionListener batchJobLogListener) {
@@ -48,7 +48,7 @@ public class InteresesJobConfig {
     }
 
     @Bean
-    // Elimina los cálculos anteriores antes de procesar nuevos registros.
+    // Cálculos independientes por ejecución.
     public Step limpiarInteresesStep(JobRepository repository,
                                      PlatformTransactionManager transactionManager,
                                      JdbcTemplate jdbcTemplate) {
@@ -62,7 +62,7 @@ public class InteresesJobConfig {
     }
 
     @Bean
-    // Calcula y guarda los intereses en chunks de cinco registros.
+    // Intereses en bloques de cinco registros.
     public Step procesarInteresesStep(JobRepository repository,
                                       PlatformTransactionManager transactionManager,
                                       FlatFileItemReader<InteresCsv> interesesReader,
@@ -109,7 +109,7 @@ public class InteresesJobConfig {
     }
 
     @Bean
-    // Lee los datos de cuenta desde un archivo delimitado.
+    // Entrada de cuentas delimitada.
     @StepScope
     public FlatFileItemReader<InteresCsv> interesesReader(
             @Value("${app.archivos.intereses}") Resource resource,
@@ -132,7 +132,7 @@ public class InteresesJobConfig {
     }
 
     @Bean
-    // Inserta los intereses calculados en la base de datos.
+    // Persistencia de intereses calculados.
     public JdbcBatchItemWriter<InteresCalculado> interesesWriter(javax.sql.DataSource dataSource) {
         return new JdbcBatchItemWriterBuilder<InteresCalculado>()
                 .dataSource(dataSource)

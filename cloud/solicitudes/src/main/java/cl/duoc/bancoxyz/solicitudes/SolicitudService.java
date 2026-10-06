@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
-// Conserva las solicitudes pendientes antes de publicar mensajes.
+// Solicitudes pendientes persistentes.
 public class SolicitudService {
 
     private static final Set<String> PROCESOS = Set.of("transacciones", "intereses", "estados-anuales");
@@ -49,7 +49,7 @@ public class SolicitudService {
     }
 
     @Scheduled(fixedDelayString = "${app.publicacion.intervalo:1000}")
-    // Reintenta la publicación sin perder solicitudes pendientes.
+    // Publicación con reintentos.
     public void publicarPendientes() throws Exception {
         for (var solicitud : jdbcTemplate.queryForList(
                 "SELECT id, proceso FROM solicitudes WHERE estado = 'PENDIENTE' ORDER BY creada LIMIT 100")) {
@@ -60,7 +60,7 @@ public class SolicitudService {
     }
 
     @JmsListener(destination = "procesos.resultados")
-    // Actualiza el resultado sin alterar la identidad de la solicitud.
+    // Resultado asociado al identificador persistido.
     public void recibirResultado(String contenido) throws Exception {
         var resultado = objectMapper.readTree(contenido);
         String estado = resultado.path("estado").asText();

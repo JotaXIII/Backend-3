@@ -49,7 +49,7 @@ class ConsultaServiceTest {
     @BeforeEach
     void preparar() throws Exception {
         discovery = mock(DiscoveryClient.class);
-        // Reduce la espera entre reintentos.
+        // Espera mínima entre reintentos.
         breakers = CircuitBreakerRegistry.of(CircuitBreakerConfig.custom()
                 .slidingWindowSize(4).minimumNumberOfCalls(4).failureRateThreshold(50)
                 .waitDurationInOpenState(Duration.ofSeconds(10)).permittedNumberOfCallsInHalfOpenState(2)
@@ -106,7 +106,7 @@ class ConsultaServiceTest {
         assertThat(service.consultar("intereses", "Bearer prueba", 100, 0)).containsEntry("disponible", false);
         assertThat(llamadas.get()).isEqualTo(8);
         codigo.set(200);
-        // Activa la recuperación sin esperar al reloj.
+        // Recuperación sin espera temporal.
         breaker.transitionToHalfOpenState();
         assertThat(service.estado()).isEqualTo("HALF_OPEN");
         assertThat(service.consultar("intereses", "Bearer prueba", 100, 0)).containsEntry("disponible", true);

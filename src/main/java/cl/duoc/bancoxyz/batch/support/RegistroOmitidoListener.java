@@ -14,13 +14,13 @@ public class RegistroOmitidoListener<I, O> implements SkipListener<I, O> {
     }
 
     @Override
-    // Registra los errores producidos durante la lectura.
+    // Errores de lectura.
     public void onSkipInRead(Throwable throwable) {
         guardar("LECTURA", "No disponible", throwable);
     }
 
     @Override
-    // Registra los registros rechazados durante la transformación.
+    // Rechazos de transformación.
     public void onSkipInProcess(I item, Throwable throwable) {
         String datos = throwable instanceof RegistroInvalidoException error
                 ? error.getDatos()
@@ -29,7 +29,7 @@ public class RegistroOmitidoListener<I, O> implements SkipListener<I, O> {
     }
 
     @Override
-    // Registra los errores producidos al guardar un resultado.
+    // Errores de persistencia.
     public void onSkipInWrite(O item, Throwable throwable) {
         guardar("ESCRITURA", String.valueOf(item), throwable);
     }
