@@ -1,13 +1,13 @@
-name: exp3_s8_juancarlos_osega
-
-x-health: &health
-  test: ["CMD-SHELL", "curl -fsS http://localhost:$${PORT}/actuator/health > /dev/null"]
+name: banco_xyz_eft
+x-health: &id001
+  test:
+  - CMD-SHELL
+  - curl -fsS http://localhost:$${PORT}/actuator/health > /dev/null
   interval: 10s
   timeout: 5s
   retries: 15
   start_period: 45s
-
-x-api-env: &api-env
+x-api-env:
   CONFIG_URL: http://configuracion:8888
   EUREKA_URL: http://descubrimiento:8761/eureka/
   OAUTH_ISSUER: ${OAUTH_ISSUER:-http://localhost:9000}
@@ -16,7 +16,6 @@ x-api-env: &api-env
   DB_USER: banco
   DB_PASSWORD: ${DB_PASSWORD:-banco123}
   JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70
-
 services:
   postgres:
     image: postgres:17-alpine
@@ -25,35 +24,43 @@ services:
       POSTGRES_USER: banco
       POSTGRES_PASSWORD: ${DB_PASSWORD:-banco123}
     ports:
-      - "127.0.0.1:5433:5432"
+    - 127.0.0.1:5433:5432
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U banco -d banco_xyz"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U banco -d banco_xyz
       interval: 5s
       timeout: 5s
       retries: 15
     volumes:
-      - datos:/var/lib/postgresql/data
+    - datos:/var/lib/postgresql/data
+    - ./infra/postgres/01-esquemas.sql:/docker-entrypoint-initdb.d/01-esquemas.sql:ro
     restart: unless-stopped
-
+    mem_limit: 512m
+    memswap_limit: 512m
   mensajeria:
     image: apache/activemq-artemis:2.41.0
     environment:
       ARTEMIS_USER: app
       ARTEMIS_PASSWORD: ${JMS_PASSWORD:-mensajeria-local}
-      ANONYMOUS_LOGIN: "false"
+      ANONYMOUS_LOGIN: 'false'
+      JAVA_ARGS: -Xms128m -Xmx384m
     ports:
-      - "127.0.0.1:61616:61616"
-      - "127.0.0.1:8161:8161"
+    - 127.0.0.1:61616:61616
+    - 127.0.0.1:8161:8161
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/61616'"]
+      test:
+      - CMD-SHELL
+      - bash -c 'echo > /dev/tcp/127.0.0.1/61616'
       interval: 10s
       timeout: 5s
       retries: 15
       start_period: 30s
     volumes:
-      - mensajes:/var/lib/artemis-instance
+    - mensajes:/var/lib/artemis-instance
     restart: unless-stopped
-
+    mem_limit: 768m
+    memswap_limit: 768m
   autorizacion:
     image: banco-xyz/autorizacion:1.0.0
     build:
@@ -66,11 +73,27 @@ services:
       OAUTH_ISSUER: ${OAUTH_ISSUER:-http://localhost:9000}
       OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:-operador-local}
       OAUTH_READER_SECRET: ${OAUTH_READER_SECRET:-lector-local}
+      OAUTH_WEB_SECRET: ${OAUTH_WEB_SECRET:-web-local}
+      OAUTH_MOVIL_SECRET: ${OAUTH_MOVIL_SECRET:-movil-local}
+      OAUTH_CAJEROS_SECRET: ${OAUTH_CAJEROS_SECRET:-cajeros-local}
+      OAUTH_INTERNAL_SECRET: ${OAUTH_INTERNAL_SECRET:-interno-local}
+      OAUTH_ADMIN_SECRET: ${OAUTH_ADMIN_SECRET:-admin-local}
+      OAUTH_OTRO_SECRET: ${OAUTH_OTRO_SECRET:-otro-local}
+      APP_OAUTH_WEB_SECRET: ${OAUTH_WEB_SECRET:-web-local}
+      APP_OAUTH_MOVIL_SECRET: ${OAUTH_MOVIL_SECRET:-movil-local}
+      APP_OAUTH_CAJEROS_SECRET: ${OAUTH_CAJEROS_SECRET:-cajeros-local}
+      APP_OAUTH_INTERNAL_SECRET: ${OAUTH_INTERNAL_SECRET:-interno-local}
+      APP_OAUTH_ADMIN_SECRET: ${OAUTH_ADMIN_SECRET:-admin-local}
+      APP_OAUTH_OTRO_SECRET: ${OAUTH_OTRO_SECRET:-otro-local}
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
     ports:
-      - "9000:9000"
-    healthcheck: *health
+    - 9000:9000
+    healthcheck: *id001
     restart: unless-stopped
-
+    volumes:
+    - claves:/app/build/claves
+    mem_limit: 512m
+    memswap_limit: 512m
   descubrimiento:
     image: banco-xyz/descubrimiento:1.0.0
     build:
@@ -80,11 +103,13 @@ services:
         SERVICE: descubrimiento
     environment:
       PORT: 8761
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx192m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
     ports:
-      - "127.0.0.1:8761:8761"
-    healthcheck: *health
+    - 127.0.0.1:8761:8761
+    healthcheck: *id001
     restart: unless-stopped
-
+    mem_limit: 384m
+    memswap_limit: 384m
   configuracion:
     image: banco-xyz/configuracion:1.0.0
     build:
@@ -94,11 +119,13 @@ services:
         SERVICE: configuracion
     environment:
       PORT: 8888
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx192m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
     ports:
-      - "127.0.0.1:8888:8888"
-    healthcheck: *health
+    - 127.0.0.1:8888:8888
+    healthcheck: *id001
     restart: unless-stopped
-
+    mem_limit: 384m
+    memswap_limit: 384m
   batch:
     image: banco-xyz/batch:1.0.0
     build:
@@ -109,7 +136,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/banco_xyz
       DB_USER: banco
       DB_PASSWORD: ${DB_PASSWORD:-banco123}
-      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx512m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
       JMS_URL: tcp://mensajeria:61616
       JMS_USER: app
       JMS_PASSWORD: ${JMS_PASSWORD:-mensajeria-local}
@@ -118,11 +145,12 @@ services:
         condition: service_healthy
       mensajeria:
         condition: service_healthy
-    healthcheck: *health
+    healthcheck: *id001
     volumes:
-      - reportes:/app/build/reportes
+    - reportes:/app/build/reportes
     restart: unless-stopped
-
+    mem_limit: 1024m
+    memswap_limit: 1024m
   consultas:
     image: banco-xyz/consultas:1.0.0
     build:
@@ -131,7 +159,14 @@ services:
       args:
         SERVICE: consultas
     environment:
-      <<: *api-env
+      CONFIG_URL: http://configuracion:8888
+      EUREKA_URL: http://descubrimiento:8761/eureka/
+      OAUTH_ISSUER: ${OAUTH_ISSUER:-http://localhost:9000}
+      OAUTH_JWK_URI: http://autorizacion:9000/oauth2/jwks
+      DB_URL: jdbc:postgresql://postgres:5432/banco_xyz
+      DB_USER: banco
+      DB_PASSWORD: ${DB_PASSWORD:-banco123}
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
       PORT: 8081
     depends_on:
       configuracion:
@@ -144,9 +179,10 @@ services:
         condition: service_healthy
       batch:
         condition: service_healthy
-    healthcheck: *health
+    healthcheck: *id001
     restart: unless-stopped
-
+    mem_limit: 512m
+    memswap_limit: 512m
   solicitudes:
     image: banco-xyz/solicitudes:1.0.0
     build:
@@ -155,22 +191,298 @@ services:
       args:
         SERVICE: solicitudes
     environment:
-      <<: *api-env
+      CONFIG_URL: http://configuracion:8888
+      EUREKA_URL: http://descubrimiento:8761/eureka/
+      OAUTH_ISSUER: ${OAUTH_ISSUER:-http://localhost:9000}
+      OAUTH_JWK_URI: http://autorizacion:9000/oauth2/jwks
+      DB_URL: jdbc:postgresql://postgres:5432/banco_xyz
+      DB_USER: banco
+      DB_PASSWORD: ${DB_PASSWORD:-banco123}
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
       PORT: 8080
       JMS_URL: tcp://mensajeria:61616
       JMS_USER: app
       JMS_PASSWORD: ${JMS_PASSWORD:-mensajeria-local}
     ports:
-      - "8080:8080"
+    - 8080:8080
     depends_on:
       consultas:
         condition: service_healthy
       mensajeria:
         condition: service_healthy
-    healthcheck: *health
+    healthcheck: *id001
     restart: unless-stopped
-
+    mem_limit: 512m
+    memswap_limit: 512m
+  kafka:
+    image: apache/kafka:4.1.2
+    environment:
+      KAFKA_NODE_ID: '1'
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    volumes:
+    - kafka-datos:/tmp/kraft-combined-logs
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+    mem_limit: 1024m
+    memswap_limit: 1024m
+    depends_on:
+      kafka-permisos:
+        condition: service_completed_successfully
+  kafka-topicos:
+    image: apache/kafka:4.1.2
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint:
+    - /bin/bash
+    - -c
+    command:
+    - for topic in transacciones.completadas seguridad.alertas; do /opt/kafka/bin/kafka-topics.sh
+      --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$topic" --partitions
+      3 --replication-factor 1 --config compression.type=uncompressed || exit 1; done
+    restart: 'no'
+    mem_limit: 256m
+    memswap_limit: 256m
+  clientes:
+    image: banco-xyz/clientes:1.0.0
+    build:
+      context: .
+      dockerfile: cloud/Dockerfile
+      args:
+        SERVICE: clientes
+    environment:
+      CONFIG_URL: http://configuracion:8888
+      EUREKA_URL: http://descubrimiento:8761/eureka/
+      OAUTH_ISSUER: ${OAUTH_ISSUER:-http://localhost:9000}
+      OAUTH_JWK_URI: http://autorizacion:9000/oauth2/jwks
+      DB_URL: jdbc:postgresql://postgres:5432/banco_xyz
+      DB_USER: banco
+      DB_PASSWORD: ${DB_PASSWORD:-banco123}
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
+      PORT: 8083
+    depends_on:
+      configuracion:
+        condition: service_healthy
+      descubrimiento:
+        condition: service_healthy
+      autorizacion:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck: *id001
+    restart: unless-stopped
+    mem_limit: 512m
+    memswap_limit: 512m
+  cuentas:
+    image: banco-xyz/cuentas:1.0.0
+    build:
+      context: .
+      dockerfile: cloud/Dockerfile
+      args:
+        SERVICE: cuentas
+    environment:
+      CONFIG_URL: http://configuracion:8888
+      EUREKA_URL: http://descubrimiento:8761/eureka/
+      OAUTH_ISSUER: ${OAUTH_ISSUER:-http://localhost:9000}
+      OAUTH_JWK_URI: http://autorizacion:9000/oauth2/jwks
+      DB_URL: jdbc:postgresql://postgres:5432/banco_xyz
+      DB_USER: banco
+      DB_PASSWORD: ${DB_PASSWORD:-banco123}
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
+      PORT: 8084
+    depends_on:
+      configuracion:
+        condition: service_healthy
+      descubrimiento:
+        condition: service_healthy
+      autorizacion:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck: *id001
+    restart: unless-stopped
+    mem_limit: 512m
+    memswap_limit: 512m
+  pagos:
+    image: banco-xyz/pagos:1.0.0
+    build:
+      context: .
+      dockerfile: cloud/Dockerfile
+      args:
+        SERVICE: pagos
+    environment:
+      CONFIG_URL: http://configuracion:8888
+      EUREKA_URL: http://descubrimiento:8761/eureka/
+      OAUTH_ISSUER: ${OAUTH_ISSUER:-http://localhost:9000}
+      OAUTH_JWK_URI: http://autorizacion:9000/oauth2/jwks
+      DB_URL: jdbc:postgresql://postgres:5432/banco_xyz
+      DB_USER: banco
+      DB_PASSWORD: ${DB_PASSWORD:-banco123}
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
+      PORT: 8085
+      TOKEN_URL: http://autorizacion:9000/oauth2/token
+      OAUTH_INTERNAL_SECRET: ${OAUTH_INTERNAL_SECRET:-interno-local}
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on:
+      configuracion:
+        condition: service_healthy
+      descubrimiento:
+        condition: service_healthy
+      autorizacion:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      cuentas:
+        condition: service_healthy
+      kafka-topicos:
+        condition: service_completed_successfully
+    healthcheck: *id001
+    restart: unless-stopped
+    mem_limit: 512m
+    memswap_limit: 512m
+  bff-web:
+    image: banco-xyz/bff-web:1.0.0
+    build:
+      context: .
+      dockerfile: cloud/Dockerfile
+      args:
+        SERVICE: bff-web
+    environment:
+      CONFIG_URL: http://configuracion:8888
+      EUREKA_URL: http://descubrimiento:8761/eureka/
+      OAUTH_ISSUER: ${OAUTH_ISSUER:-http://localhost:9000}
+      OAUTH_JWK_URI: http://autorizacion:9000/oauth2/jwks
+      DB_URL: jdbc:postgresql://postgres:5432/banco_xyz
+      DB_USER: banco
+      DB_PASSWORD: ${DB_PASSWORD:-banco123}
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
+      PORT: 8090
+    depends_on:
+      configuracion:
+        condition: service_healthy
+      descubrimiento:
+        condition: service_healthy
+      autorizacion:
+        condition: service_healthy
+      clientes:
+        condition: service_healthy
+      cuentas:
+        condition: service_healthy
+      pagos:
+        condition: service_healthy
+    healthcheck: *id001
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:8090:8090
+    mem_limit: 512m
+    memswap_limit: 512m
+  bff-movil:
+    image: banco-xyz/bff-movil:1.0.0
+    build:
+      context: .
+      dockerfile: cloud/Dockerfile
+      args:
+        SERVICE: bff-movil
+    environment:
+      CONFIG_URL: http://configuracion:8888
+      EUREKA_URL: http://descubrimiento:8761/eureka/
+      OAUTH_ISSUER: ${OAUTH_ISSUER:-http://localhost:9000}
+      OAUTH_JWK_URI: http://autorizacion:9000/oauth2/jwks
+      DB_URL: jdbc:postgresql://postgres:5432/banco_xyz
+      DB_USER: banco
+      DB_PASSWORD: ${DB_PASSWORD:-banco123}
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
+      PORT: 8091
+    depends_on:
+      configuracion:
+        condition: service_healthy
+      descubrimiento:
+        condition: service_healthy
+      autorizacion:
+        condition: service_healthy
+      clientes:
+        condition: service_healthy
+      cuentas:
+        condition: service_healthy
+      pagos:
+        condition: service_healthy
+    healthcheck: *id001
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:8091:8091
+    mem_limit: 512m
+    memswap_limit: 512m
+  bff-cajeros:
+    image: banco-xyz/bff-cajeros:1.0.0
+    build:
+      context: .
+      dockerfile: cloud/Dockerfile
+      args:
+        SERVICE: bff-cajeros
+    environment:
+      CONFIG_URL: http://configuracion:8888
+      EUREKA_URL: http://descubrimiento:8761/eureka/
+      OAUTH_ISSUER: ${OAUTH_ISSUER:-http://localhost:9000}
+      OAUTH_JWK_URI: http://autorizacion:9000/oauth2/jwks
+      DB_URL: jdbc:postgresql://postgres:5432/banco_xyz
+      DB_USER: banco
+      DB_PASSWORD: ${DB_PASSWORD:-banco123}
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
+      PORT: 8092
+    depends_on:
+      configuracion:
+        condition: service_healthy
+      descubrimiento:
+        condition: service_healthy
+      autorizacion:
+        condition: service_healthy
+      clientes:
+        condition: service_healthy
+      cuentas:
+        condition: service_healthy
+      pagos:
+        condition: service_healthy
+    healthcheck: *id001
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:8092:8092
+    mem_limit: 512m
+    memswap_limit: 512m
+  kafka-permisos:
+    image: apache/kafka:4.1.2
+    user: 0:0
+    entrypoint:
+    - /bin/bash
+    - -ec
+    command:
+    - chown -R 1000:1000 /tmp/kraft-combined-logs && chmod 750 /tmp/kraft-combined-logs
+    volumes:
+    - kafka-datos:/tmp/kraft-combined-logs
+    restart: 'no'
+    mem_limit: 128m
+    memswap_limit: 128m
 volumes:
-  datos:
-  mensajes:
-  reportes:
+  datos: null
+  mensajes: null
+  reportes: null
+  claves: {}
+  kafka-datos: {}

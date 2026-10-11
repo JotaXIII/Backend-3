@@ -38,6 +38,21 @@ public class SolicitudService {
         return consultar(id, propietario);
     }
 
+    public Map<String,Object> solicitar(String proceso,String propietario,String periodo) {
+        if (periodo==null || periodo.isBlank()) return solicitar(proceso,propietario);
+        try {
+            switch(proceso) {
+                case "transacciones" -> java.time.LocalDate.parse(periodo);
+                case "intereses" -> java.time.YearMonth.parse(periodo);
+                case "estados-anuales" -> java.time.Year.parse(periodo);
+                default -> throw new IllegalArgumentException();
+            }
+        } catch(Exception exception) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Periodo invalido"); }
+        String id=UUID.randomUUID().toString();
+        jdbcTemplate.update("INSERT INTO solicitudes(id, proceso, propietario, estado, periodo) VALUES (?, ?, ?, 'PENDIENTE', ?)",id,proceso,propietario,periodo);
+        return consultar(id,propietario);
+    }
+
     public Map<String, Object> consultar(String id, String propietario) {
         var resultados = jdbcTemplate.queryForList(
                 "SELECT id, proceso, estado, creada FROM solicitudes WHERE id = ? AND propietario = ?",
@@ -52,7 +67,7 @@ public class SolicitudService {
     // Publicación con reintentos.
     public void publicarPendientes() throws Exception {
         for (var solicitud : jdbcTemplate.queryForList(
-                "SELECT id, proceso FROM solicitudes WHERE estado = 'PENDIENTE' ORDER BY creada LIMIT 100")) {
+                "SELECT id, proceso, periodo FROM solicitudes WHERE estado = 'PENDIENTE' ORDER BY creada LIMIT 100")) {
             String id = solicitud.get("id").toString();
             jmsTemplate.convertAndSend("procesos.solicitudes", objectMapper.writeValueAsString(solicitud));
             jdbcTemplate.update("UPDATE solicitudes SET estado = 'ENVIADA' WHERE id = ? AND estado = 'PENDIENTE'", id);

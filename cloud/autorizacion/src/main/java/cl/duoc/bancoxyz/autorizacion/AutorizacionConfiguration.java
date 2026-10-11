@@ -55,9 +55,31 @@ public class AutorizacionConfiguration {
     @Bean
     public RegisteredClientRepository clientes(
             @Value("${app.oauth.secret}") String secret,
-            @Value("${app.oauth.lector-secret}") String readerSecret) {
+            @Value("${app.oauth.lector-secret}") String readerSecret,
+            @Value("${app.oauth.web-secret:web-local}") String webSecret,
+            @Value("${app.oauth.movil-secret:movil-local}") String movilSecret,
+            @Value("${app.oauth.cajeros-secret:cajeros-local}") String cajerosSecret,
+            @Value("${app.oauth.internal-secret:interno-local}") String internalSecret,
+            @Value("${app.oauth.admin-secret:admin-local}") String adminSecret,
+            @Value("${app.oauth.otro-secret:otro-local}") String otroSecret) {
         return new InMemoryRegisteredClientRepository(
-                cliente("operador", secret, true), cliente("lector", readerSecret, false));
+                cliente("operador", secret, true), cliente("lector", readerSecret, false),
+                canal("web-demo",webSecret,"datos.read","pagos.write","cuentas.write","clientes.write"),
+                canal("movil-demo",movilSecret,"datos.read","pagos.write"),
+                canal("cajeros-demo",cajerosSecret,"datos.read","retiros.write"),
+                canal("otro-web",otroSecret,"datos.read","pagos.write","cuentas.write","clientes.write"),
+                canal("pagos-interno",internalSecret,"operaciones.internal"),
+                canal("administrador",adminSecret,"datos.read","banco.admin","procesos.write"));
+    }
+
+    private RegisteredClient canal(String id,String secret,String... scopes) {
+        var builder=RegisteredClient.withId(id).clientId(id)
+                .clientSecret(PasswordEncoderFactories.createDelegatingPasswordEncoder().encode(secret))
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+                .tokenSettings(TokenSettings.builder().accessTokenTimeToLive(Duration.ofMinutes(10)).build());
+        for(String scope:scopes) builder.scope(scope);
+        return builder.build();
     }
 
     private RegisteredClient cliente(String id, String secret, boolean escritura) {
@@ -74,19 +96,44 @@ public class AutorizacionConfiguration {
     }
 
     @Bean
-    // Clave de firma temporal.
-    public JWKSource<SecurityContext> claves() throws Exception {
-        var generator = KeyPairGenerator.getInstance("RSA");
-        generator.initialize(2048);
-        var pair = generator.generateKeyPair();
-        var rsa = new RSAKey.Builder((RSAPublicKey) pair.getPublic())
-                .privateKey((RSAPrivateKey) pair.getPrivate()).keyID(UUID.randomUUID().toString()).build();
+    // Clave de firma persistente.
+    public JWKSource<SecurityContext> claves(@Value("${app.oauth.key-file:build/claves/firma.properties}") String archivo) throws Exception {
+        var ruta=java.nio.file.Path.of(archivo);
+        java.nio.file.Files.createDirectories(ruta.toAbsolutePath().getParent());
+        var datos=new java.util.Properties();
+        if (!java.nio.file.Files.exists(ruta)) {
+            var generator=KeyPairGenerator.getInstance("RSA");generator.initialize(2048);
+            var pair=generator.generateKeyPair();
+            datos.setProperty("publica",java.util.Base64.getEncoder().encodeToString(pair.getPublic().getEncoded()));
+            datos.setProperty("privada",java.util.Base64.getEncoder().encodeToString(pair.getPrivate().getEncoded()));
+            datos.setProperty("id",UUID.randomUUID().toString());
+            try(var output=java.nio.file.Files.newOutputStream(ruta,java.nio.file.StandardOpenOption.CREATE_NEW)) {
+                datos.store(output,null);
+            }
+        }
+        try(var input=java.nio.file.Files.newInputStream(ruta)) { datos.load(input); }
+        var factory=java.security.KeyFactory.getInstance("RSA");
+        var publica=(RSAPublicKey)factory.generatePublic(new java.security.spec.X509EncodedKeySpec(
+                java.util.Base64.getDecoder().decode(datos.getProperty("publica"))));
+        var privada=(RSAPrivateKey)factory.generatePrivate(new java.security.spec.PKCS8EncodedKeySpec(
+                java.util.Base64.getDecoder().decode(datos.getProperty("privada"))));
+        var rsa = new RSAKey.Builder(publica).privateKey(privada).keyID(datos.getProperty("id")).build();
         return new ImmutableJWKSet<>(new JWKSet(rsa));
     }
 
     @Bean
     public OAuth2TokenCustomizer<JwtEncodingContext> destinatario() {
-        return context -> context.getClaims().audience(List.of("banco-api"));
+        return context -> {
+            context.getClaims().audience(List.of("banco-api"));
+            String cliente=context.getRegisteredClient().getClientId();
+            switch(cliente) {
+                case "web-demo" -> context.getClaims().claim("cliente_id",1L).claim("canal","web");
+                case "movil-demo" -> context.getClaims().claim("cliente_id",1L).claim("canal","movil");
+                case "cajeros-demo" -> context.getClaims().claim("cliente_id",1L).claim("canal","cajeros");
+                case "otro-web" -> context.getClaims().claim("cliente_id",2L).claim("canal","web");
+                default -> { }
+            }
+        };
     }
 
     @Bean

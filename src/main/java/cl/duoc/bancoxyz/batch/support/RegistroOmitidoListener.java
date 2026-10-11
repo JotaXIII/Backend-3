@@ -35,10 +35,12 @@ public class RegistroOmitidoListener<I, O> implements SkipListener<I, O> {
     }
 
     private void guardar(String etapa, String datos, Throwable throwable) {
+        long ejecucion=org.springframework.batch.core.scope.context.StepSynchronizationManager.getContext()
+                .getStepExecution().getJobExecution().getJobInstance().getInstanceId();
         jdbcTemplate.update("""
-                INSERT INTO registros_rechazados(job, etapa, datos, motivo)
-                VALUES (?, ?, ?, ?)
-                """, job, etapa, limitar(datos, 1000), limitar(throwable.getMessage(), 500));
+                INSERT INTO registros_rechazados(ejecucion_id, job, etapa, datos, motivo)
+                VALUES (?, ?, ?, ?, ?)
+                """, ejecucion, job, etapa, limitar(datos, 1000), limitar(throwable.getMessage(), 500));
     }
 
     private String limitar(String valor, int maximo) {

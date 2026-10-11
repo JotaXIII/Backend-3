@@ -1,0 +1,29 @@
+{$PUBLIC_DOMAIN:localhost} {
+    encode gzip
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+        Strict-Transport-Security "max-age=31536000"
+    }
+    handle /api/web/* {
+        reverse_proxy bff-web:8090
+    }
+    handle /api/movil/* {
+        reverse_proxy bff-movil:8091
+    }
+    handle /api/cajeros/* {
+        reverse_proxy bff-cajeros:8092
+    }
+    handle /oauth2/* {
+        reverse_proxy autorizacion:9000
+    }
+    handle /.well-known/* {
+        reverse_proxy autorizacion:9000
+    }
+    handle /health {
+        respond "OK" 200
+    }
+    handle {
+        respond "Ruta no disponible" 404
+    }
+}

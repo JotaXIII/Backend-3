@@ -31,10 +31,10 @@ public class ConsultaController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Paginación inválida");
         }
         String consulta = switch (recurso) {
-            case "transacciones" -> "SELECT * FROM transacciones_procesadas ORDER BY id";
-            case "intereses" -> "SELECT * FROM intereses_calculados ORDER BY cuenta_id";
-            case "estados-anuales" -> "SELECT * FROM estados_cuenta_anuales ORDER BY cuenta_id, anio";
-            case "rechazados" -> "SELECT * FROM registros_rechazados ORDER BY id";
+            case "transacciones" -> "SELECT * FROM transacciones_procesadas WHERE ejecucion_id=(SELECT ejecucion_id FROM publicaciones_batch WHERE job='transaccionesJob') ORDER BY id";
+            case "intereses" -> "SELECT * FROM intereses_calculados WHERE ejecucion_id=(SELECT ejecucion_id FROM publicaciones_batch WHERE job='interesesJob') ORDER BY cuenta_id";
+            case "estados-anuales" -> "SELECT * FROM estados_cuenta_anuales WHERE ejecucion_id=(SELECT ejecucion_id FROM publicaciones_batch WHERE job='estadosAnualesJob') ORDER BY cuenta_id, anio";
+            case "rechazados" -> "SELECT * FROM registros_rechazados WHERE ejecucion_id IN (SELECT ejecucion_id FROM publicaciones_batch) ORDER BY id";
             default -> throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Recurso no disponible");
         };
         return jdbcTemplate.queryForList(consulta + " LIMIT ? OFFSET ?", limite, pagina * limite);

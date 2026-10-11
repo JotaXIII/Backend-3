@@ -4,3 +4,15 @@
 **/.m2
 docs
 .env
+.env.*
+**/.terraform
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+.work
+capturas
+local
+**/*.docx
+**/*.pdf
+**/*.mp4
+**/*.zip

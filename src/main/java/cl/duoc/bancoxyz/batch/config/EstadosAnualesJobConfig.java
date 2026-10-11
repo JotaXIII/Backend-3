@@ -60,9 +60,9 @@ public class EstadosAnualesJobConfig {
                                           JdbcTemplate jdbcTemplate) {
         return new StepBuilder("limpiarEstadosAnualesStep", repository)
                 .tasklet((contribution, context) -> {
-                    jdbcTemplate.update("DELETE FROM movimientos_anuales");
-                    jdbcTemplate.update("DELETE FROM estados_cuenta_anuales");
-                    jdbcTemplate.update("DELETE FROM registros_rechazados WHERE job = 'estadosAnualesJob'");
+                    jdbcTemplate.update("DELETE FROM movimientos_anuales WHERE ejecucion_id=?", context.getStepContext().getStepExecution().getJobExecution().getJobInstance().getInstanceId());
+                    jdbcTemplate.update("DELETE FROM estados_cuenta_anuales WHERE ejecucion_id=?", context.getStepContext().getStepExecution().getJobExecution().getJobInstance().getInstanceId());
+                    jdbcTemplate.update("DELETE FROM registros_rechazados WHERE job = \'estadosAnualesJob\' AND ejecucion_id=?", context.getStepContext().getStepExecution().getJobExecution().getJobInstance().getInstanceId());
                     return org.springframework.batch.repeat.RepeatStatus.FINISHED;
                 }, transactionManager)
                 .build();
@@ -72,13 +72,15 @@ public class EstadosAnualesJobConfig {
     // Movimientos válidos en bloques de cinco registros.
     public Step procesarEstadosAnualesStep(JobRepository repository,
                                             PlatformTransactionManager transactionManager,
+                                            @Value("${app.batch.chunk-size:100}") int chunkSize,
                                             FlatFileItemReader<MovimientoAnualCsv> movimientosAnualesReader,
                                             JdbcBatchItemWriter<MovimientoAnual> movimientosAnualesWriter,
+                                            org.springframework.batch.item.ItemProcessor<MovimientoAnualCsv,MovimientoAnual> movimientosAnualesProcessor,
                                             JdbcTemplate jdbcTemplate) {
         return new StepBuilder("procesarEstadosAnualesStep", repository)
-                .<MovimientoAnualCsv, MovimientoAnual>chunk(5, transactionManager)
+                .<MovimientoAnualCsv, MovimientoAnual>chunk(chunkSize, transactionManager)
                 .reader(movimientosAnualesReader)
-                .processor(new MovimientoAnualProcessor())
+                .processor(movimientosAnualesProcessor)
                 .writer(movimientosAnualesWriter)
                 .faultTolerant()
                 .skip(RegistroInvalidoException.class)
@@ -86,6 +88,8 @@ public class EstadosAnualesJobConfig {
                 .skip(DataIntegrityViolationException.class)
                 .skipLimit(100)
                 .retry(CannotAcquireLockException.class)
+                .retry(org.springframework.dao.TransientDataAccessException.class)
+                .retry(org.springframework.jdbc.CannotGetJdbcConnectionException.class)
                 .retryLimit(3)
                 .listener(new RegistroOmitidoListener<MovimientoAnualCsv, MovimientoAnual>(jdbcTemplate,
                         "estadosAnualesJob"))
@@ -125,14 +129,14 @@ public class EstadosAnualesJobConfig {
                 .tasklet((contribution, context) -> {
                     jdbcTemplate.update("""
                             INSERT INTO estados_cuenta_anuales(
-                                cuenta_id, anio, cantidad_movimientos, total_depositos, total_cargos, saldo_anual)
-                            SELECT cuenta_id, EXTRACT(YEAR FROM fecha), COUNT(*),
+                                ejecucion_id, cuenta_id, anio, cantidad_movimientos, total_depositos, total_cargos, saldo_anual)
+                            SELECT ejecucion_id, cuenta_id, EXTRACT(YEAR FROM fecha), COUNT(*),
                                    SUM(CASE WHEN monto > 0 THEN monto ELSE 0 END),
                                    SUM(CASE WHEN monto < 0 THEN ABS(monto) ELSE 0 END), SUM(monto)
-                            FROM movimientos_anuales
-                            GROUP BY cuenta_id, EXTRACT(YEAR FROM fecha)
-                            """);
-                    escribirInforme(jdbcTemplate, Path.of(directorio, "estados_cuenta_anuales.csv"));
+                            FROM movimientos_anuales WHERE ejecucion_id=?
+                            GROUP BY ejecucion_id, cuenta_id, EXTRACT(YEAR FROM fecha)
+                            """, context.getStepContext().getStepExecution().getJobExecution().getJobInstance().getInstanceId());
+                    escribirInforme(jdbcTemplate, Path.of(directorio, "estados_cuenta_anuales.csv"), context.getStepContext().getStepExecution().getJobExecution().getJobInstance().getInstanceId());
                     return org.springframework.batch.repeat.RepeatStatus.FINISHED;
                 }, transactionManager)
                 .build();
@@ -162,28 +166,40 @@ public class EstadosAnualesJobConfig {
     }
 
     @Bean
+    @StepScope
+    public org.springframework.batch.item.ItemProcessor<MovimientoAnualCsv,MovimientoAnual> movimientosAnualesProcessor(
+            @Value("#{jobParameters['periodo']}") String periodo) {
+        return item -> {
+            var resultado=new MovimientoAnualProcessor().process(item);
+            return periodo==null || resultado.fecha().getYear()==Integer.parseInt(periodo)?resultado:null;
+        };
+    }
+
+    @Bean
     // Persistencia de movimientos válidos.
-    public JdbcBatchItemWriter<MovimientoAnual> movimientosAnualesWriter(javax.sql.DataSource dataSource) {
+    @StepScope
+    public JdbcBatchItemWriter<MovimientoAnual> movimientosAnualesWriter(javax.sql.DataSource dataSource,
+            @Value("#{stepExecution.jobExecution.jobInstance.instanceId}") Long ejecucion) {
         return new JdbcBatchItemWriterBuilder<MovimientoAnual>()
                 .dataSource(dataSource)
                 .sql("""
-                        INSERT INTO movimientos_anuales(cuenta_id, fecha, transaccion, monto, descripcion)
-                        VALUES (:cuentaId, :fecha, :transaccion, :monto, :descripcion)
+                        INSERT INTO movimientos_anuales(ejecucion_id, cuenta_id, fecha, transaccion, monto, descripcion)
+                        VALUES (:ejecucionId, :cuentaId, :fecha, :transaccion, :monto, :descripcion)
                         """)
-                .beanMapped()
+                .itemSqlParameterSourceProvider(item -> new cl.duoc.bancoxyz.batch.support.EjecucionSqlParameterSource(item,ejecucion))
                 .build();
     }
 
-    private void escribirInforme(JdbcTemplate jdbcTemplate, Path ruta) throws Exception {
+    private void escribirInforme(JdbcTemplate jdbcTemplate, Path ruta, long ejecucion) throws Exception {
         // Resumen consolidado en formato CSV.
         Files.createDirectories(ruta.getParent());
-        try (BufferedWriter writer = Files.newBufferedWriter(ruta, StandardCharsets.UTF_8)) {
+        try (BufferedWriter writer = Files.newBufferedWriter(ruta.resolveSibling("estados_cuenta_anuales-"+ejecucion+".csv"), StandardCharsets.UTF_8)) {
             writer.write("cuenta_id,anio,cantidad_movimientos,total_depositos,total_cargos,saldo_anual");
             writer.newLine();
             var filas = jdbcTemplate.queryForList("""
                     SELECT cuenta_id, anio, cantidad_movimientos, total_depositos, total_cargos, saldo_anual
-                    FROM estados_cuenta_anuales ORDER BY cuenta_id, anio
-                    """);
+                    FROM estados_cuenta_anuales WHERE ejecucion_id=? ORDER BY cuenta_id, anio
+                    """, ejecucion);
             for (var fila : filas) {
                 writer.write("%s,%s,%s,%s,%s,%s".formatted(
                         fila.get("cuenta_id"), fila.get("anio"), fila.get("cantidad_movimientos"),
@@ -191,5 +207,7 @@ public class EstadosAnualesJobConfig {
                 writer.newLine();
             }
         }
+        Files.copy(ruta.resolveSibling("estados_cuenta_anuales-"+ejecucion+".csv"), ruta,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
     }
 }

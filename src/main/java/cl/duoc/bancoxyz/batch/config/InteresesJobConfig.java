@@ -54,8 +54,8 @@ public class InteresesJobConfig {
                                      JdbcTemplate jdbcTemplate) {
         return new StepBuilder("limpiarInteresesStep", repository)
                 .tasklet((contribution, context) -> {
-                    jdbcTemplate.update("DELETE FROM intereses_calculados");
-                    jdbcTemplate.update("DELETE FROM registros_rechazados WHERE job = 'interesesJob'");
+                    jdbcTemplate.update("DELETE FROM intereses_calculados WHERE ejecucion_id=?", context.getStepContext().getStepExecution().getJobExecution().getJobInstance().getInstanceId());
+                    jdbcTemplate.update("DELETE FROM registros_rechazados WHERE job = \'interesesJob\' AND ejecucion_id=?", context.getStepContext().getStepExecution().getJobExecution().getJobInstance().getInstanceId());
                     return org.springframework.batch.repeat.RepeatStatus.FINISHED;
                 }, transactionManager)
                 .build();
@@ -65,11 +65,12 @@ public class InteresesJobConfig {
     // Intereses en bloques de cinco registros.
     public Step procesarInteresesStep(JobRepository repository,
                                       PlatformTransactionManager transactionManager,
+                                      @Value("${app.batch.chunk-size:100}") int chunkSize,
                                       FlatFileItemReader<InteresCsv> interesesReader,
                                       JdbcBatchItemWriter<InteresCalculado> interesesWriter,
                                       JdbcTemplate jdbcTemplate) {
         return new StepBuilder("procesarInteresesStep", repository)
-                .<InteresCsv, InteresCalculado>chunk(5, transactionManager)
+                .<InteresCsv, InteresCalculado>chunk(chunkSize, transactionManager)
                 .reader(interesesReader)
                 .processor(new InteresProcessor())
                 .writer(interesesWriter)
@@ -79,6 +80,8 @@ public class InteresesJobConfig {
                 .skip(DataIntegrityViolationException.class)
                 .skipLimit(100)
                 .retry(CannotAcquireLockException.class)
+                .retry(org.springframework.dao.TransientDataAccessException.class)
+                .retry(org.springframework.jdbc.CannotGetJdbcConnectionException.class)
                 .retryLimit(3)
                 .listener(new RegistroOmitidoListener<InteresCsv, InteresCalculado>(jdbcTemplate,
                         "interesesJob"))
@@ -133,15 +136,17 @@ public class InteresesJobConfig {
 
     @Bean
     // Persistencia de intereses calculados.
-    public JdbcBatchItemWriter<InteresCalculado> interesesWriter(javax.sql.DataSource dataSource) {
+    @StepScope
+    public JdbcBatchItemWriter<InteresCalculado> interesesWriter(javax.sql.DataSource dataSource,
+            @Value("#{stepExecution.jobExecution.jobInstance.instanceId}") Long ejecucion) {
         return new JdbcBatchItemWriterBuilder<InteresCalculado>()
                 .dataSource(dataSource)
                 .sql("""
                         INSERT INTO intereses_calculados(
-                            cuenta_id, nombre, saldo_inicial, edad, tipo, tasa, interes, saldo_final)
-                        VALUES (:cuentaId, :nombre, :saldoInicial, :edad, :tipo, :tasa, :interes, :saldoFinal)
+                            ejecucion_id, cuenta_id, nombre, saldo_inicial, edad, tipo, tasa, interes, saldo_final)
+                        VALUES (:ejecucionId, :cuentaId, :nombre, :saldoInicial, :edad, :tipo, :tasa, :interes, :saldoFinal)
                         """)
-                .beanMapped()
+                .itemSqlParameterSourceProvider(item -> new cl.duoc.bancoxyz.batch.support.EjecucionSqlParameterSource(item,ejecucion))
                 .build();
     }
 }

@@ -142,6 +142,17 @@ class ConsultaServiceTest {
     }
 
     @Test
+    void discoveryAlternaInstancias() {
+        var a=new org.springframework.cloud.client.DefaultServiceInstance("a","consultas","127.0.0.1",server.getAddress().getPort(),false);
+        var b=new org.springframework.cloud.client.DefaultServiceInstance("b","consultas","localhost",server.getAddress().getPort(),false);
+        when(discovery.getInstances("consultas")).thenReturn(List.of(a,b));
+        var balanceado=new ConsultaService(discovery,breakers,retries,"");
+        assertThat(balanceado.consultar("intereses","Bearer prueba",100,0)).containsEntry("disponible",true);
+        assertThat(balanceado.consultar("intereses","Bearer prueba",100,0)).containsEntry("disponible",true);
+        assertThat(llamadas.get()).isEqualTo(2);
+    }
+
+    @Test
     void recursoInvalidoNoInvocaRemoto() {
         assertThatThrownBy(() -> service.consultar("otro", "Bearer prueba", 100, 0))
                 .isInstanceOfSatisfying(ResponseStatusException.class,

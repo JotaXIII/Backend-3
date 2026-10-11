@@ -22,6 +22,10 @@ public class ProcesosWorker {
     private final Map<String, Job> jobs;
     private final JmsTemplate jms;
     private final ObjectMapper mapper;
+    @org.springframework.beans.factory.annotation.Value("${app.batch.max-attempts:3}")
+    private int maxAttempts=3;
+    @org.springframework.beans.factory.annotation.Value("${app.batch.retry-delay:2000}")
+    private long retryDelay=0;
 
     public ProcesosWorker(JobLauncher launcher, JobRepository repository, Map<String, Job> jobs,
                           JmsTemplate jms, ObjectMapper mapper) {
@@ -49,18 +53,23 @@ public class ProcesosWorker {
         String estado = "FAILED";
         if (nombre != null) {
             var job = jobs.get(nombre);
-            var parametros = new JobParametersBuilder()
-                    .addString("solicitud.id", id.asText()).toJobParameters();
-            var anterior = repository.getLastJobExecution(job.getName(), parametros);
-            if (anterior != null && anterior.getStatus() == BatchStatus.FAILED) {
-                estado = "FAILED";
-            } else {
+            var builder = new JobParametersBuilder().addString("solicitud.id", id.asText());
+            String periodo=solicitud.path("periodo").asText("");
+            if (!periodo.isBlank()) builder.addString("periodo",periodo);
+            var identidad=builder.toJobParameters();
+            var anterior = repository.getLastJobExecution(job.getName(), identidad);
+            long intento=anterior==null?0:anterior.getJobParameters().getLong("intento",0L);
+            if (anterior!=null && anterior.getStatus()==BatchStatus.COMPLETED) estado="COMPLETED";
+            else while (intento<maxAttempts) {
+                var parametros=new JobParametersBuilder(identidad).addLong("intento",++intento,false).toJobParameters();
                 try {
                     estado = launcher.run(job, parametros).getStatus() == BatchStatus.COMPLETED
                             ? "COMPLETED" : "FAILED";
                 } catch (JobInstanceAlreadyCompleteException exception) {
                     estado = "COMPLETED";
                 }
+                if (estado.equals("COMPLETED")) break;
+                if (intento<maxAttempts && retryDelay>0) Thread.sleep(retryDelay*intento);
             }
         }
         var resultado = mapper.createObjectNode();

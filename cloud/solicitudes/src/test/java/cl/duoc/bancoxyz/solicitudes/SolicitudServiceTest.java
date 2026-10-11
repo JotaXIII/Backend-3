@@ -39,7 +39,7 @@ class SolicitudServiceTest {
         jdbc = new JdbcTemplate(datasource);
         // Persistencia de prueba.
         jdbc.execute("CREATE TABLE solicitudes (id VARCHAR(36) PRIMARY KEY, proceso VARCHAR(50) NOT NULL, "
-                + "propietario VARCHAR(100) NOT NULL, estado VARCHAR(20) NOT NULL, creada TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+                + "periodo VARCHAR(10), propietario VARCHAR(100) NOT NULL, estado VARCHAR(20) NOT NULL, creada TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
         jms = mock(JmsTemplate.class);
         service = new SolicitudService(jdbc, jms, mapper);
     }

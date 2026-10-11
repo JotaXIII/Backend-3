@@ -28,6 +28,7 @@ public class ConsultaService {
     private final CircuitBreaker circuitBreaker;
     private final Retry retry;
     private final String url;
+    private final java.util.concurrent.atomic.AtomicInteger turno=new java.util.concurrent.atomic.AtomicInteger();
 
     public ConsultaService(DiscoveryClient discoveryClient, CircuitBreakerRegistry breakers,
                            RetryRegistry retries, @Value("${app.consultas.url:}") String url) {
@@ -66,7 +67,7 @@ public class ConsultaService {
         if (instancias.isEmpty()) {
             throw new ResourceAccessException("No hay instancias disponibles");
         }
-        return instancias.getFirst().getUri().toString();
+        return instancias.get(Math.floorMod(turno.getAndIncrement(),instancias.size())).getUri().toString();
     }
 
     public String estado() {

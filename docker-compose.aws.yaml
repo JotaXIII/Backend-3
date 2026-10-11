@@ -1,0 +1,35 @@
+services:
+  autorizacion:
+    ports: !reset []
+  solicitudes:
+    ports: !reset []
+  bff-web:
+    ports: !reset []
+  bff-movil:
+    ports: !reset []
+  bff-cajeros:
+    ports: !reset []
+  acceso:
+    image: caddy:2.10.2-alpine
+    mem_limit: 128m
+    memswap_limit: 128m
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:?Definir PUBLIC_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificados:/data
+      - caddy-config:/config
+    depends_on:
+      bff-web:
+        condition: service_healthy
+      bff-movil:
+        condition: service_healthy
+      bff-cajeros:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  certificados:
+  caddy-config:

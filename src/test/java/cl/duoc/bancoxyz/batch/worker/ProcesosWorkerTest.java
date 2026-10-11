@@ -44,7 +44,7 @@ class ProcesosWorkerTest {
         when(launcher.run(eq(job), any())).thenReturn(execution);
         worker.recibir("{\"id\":\"abc\",\"proceso\":\"" + proceso + "\"}");
         verify(launcher).run(eq(job), argThat(parameters -> {
-            assertThat(parameters.getParameters()).hasSize(1);
+            assertThat(parameters.getParameters()).hasSize(2);
             assertThat(parameters.getString("solicitud.id")).isEqualTo("abc");
             assertThat(parameters.getParameters().get("solicitud.id").isIdentifying()).isTrue();
             return true;
@@ -67,19 +67,22 @@ class ProcesosWorkerTest {
         execution.setStatus(BatchStatus.FAILED);
         when(launcher.run(eq(job), any())).thenReturn(execution);
         worker.recibir("{\"id\":\"abc\",\"proceso\":\"transacciones\"}");
+        verify(launcher,times(3)).run(eq(job),any());
         verificarResultado("FAILED");
     }
 
     @Test
-    void falloPrevioNoSeReejecuta() throws Exception {
+    void falloPrevioSeReanuda() throws Exception {
         when(job.getName()).thenReturn("transaccionesJob");
         var execution = new JobExecution(1L);
         execution.setStatus(BatchStatus.FAILED);
         when(repository.getLastJobExecution(eq("transaccionesJob"), any(JobParameters.class)))
                 .thenReturn(execution);
+        var completo=new JobExecution(2L);completo.setStatus(BatchStatus.COMPLETED);
+        when(launcher.run(eq(job),any())).thenReturn(completo);
         worker.recibir("{\"id\":\"abc\",\"proceso\":\"transacciones\"}");
-        verifyNoInteractions(launcher);
-        verificarResultado("FAILED");
+        verify(launcher).run(eq(job),any());
+        verificarResultado("COMPLETED");
     }
 
     @Test

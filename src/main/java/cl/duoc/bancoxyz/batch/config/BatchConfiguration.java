@@ -30,7 +30,7 @@ public class BatchConfiguration {
 
     @Bean
     // Trazabilidad de ejecución y omisiones.
-    public JobExecutionListener batchJobLogListener() {
+    public JobExecutionListener batchJobLogListener(org.springframework.jdbc.core.JdbcTemplate db) {
         return new JobExecutionListener() {
             private final Logger logger = Logger.getLogger(BatchConfiguration.class.getName());
 
@@ -41,6 +41,16 @@ public class BatchConfiguration {
 
             @Override
             public void afterJob(JobExecution jobExecution) {
+                if (jobExecution.getStatus()==org.springframework.batch.core.BatchStatus.COMPLETED) {
+                    String job=jobExecution.getJobInstance().getJobName();
+                    long ejecucion=jobExecution.getJobInstance().getInstanceId();
+                    int cambios=db.update("UPDATE publicaciones_batch SET ejecucion_id=?,publicada=CURRENT_TIMESTAMP WHERE job=? AND ejecucion_id<=?",
+                            ejecucion,job,ejecucion);
+                    if (cambios==0) {
+                        try { db.update("INSERT INTO publicaciones_batch(job,ejecucion_id) VALUES (?,?)",job,ejecucion); }
+                        catch(org.springframework.dao.DuplicateKeyException ignored) { }
+                    }
+                }
                 logger.info(() -> "Job finalizado: " + jobExecution.getJobInstance().getJobName()
                         + " - estado=" + jobExecution.getStatus()
                         + " - omitidos=" + jobExecution.getStepExecutions().stream()

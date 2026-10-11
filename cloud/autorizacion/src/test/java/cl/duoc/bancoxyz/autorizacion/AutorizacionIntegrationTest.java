@@ -68,6 +68,26 @@ class AutorizacionIntegrationTest {
     }
 
     @Test
+    void canalWebNoObtienePermisosInternos() throws Exception {
+        mvc.perform(post("/oauth2/token").header("Authorization",basic("web-demo","web-local"))
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED).param("grant_type","client_credentials")
+                .param("scope","operaciones.internal"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("invalid_scope"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"web-demo,web-local,web,1","movil-demo,movil-local,movil,1",
+            "cajeros-demo,cajeros-local,cajeros,1","otro-web,otro-local,web,2"})
+    void identidadYCanalSonFirmados(String cliente,String secret,String canal,long id) throws Exception {
+        var respuesta=mvc.perform(post("/oauth2/token").header("Authorization",basic(cliente,secret))
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED).param("grant_type","client_credentials")
+                .param("scope","datos.read")).andExpect(status().isOk()).andReturn();
+        var claims=SignedJWT.parse(mapper.readTree(respuesta.getResponse().getContentAsString()).path("access_token").asText()).getJWTClaimsSet();
+        assertThat(claims.getLongClaim("cliente_id")).isEqualTo(id);
+        assertThat(claims.getStringClaim("canal")).isEqualTo(canal);
+    }
+
+    @Test
     void lectorNoPuedePedirEscritura() throws Exception {
         mvc.perform(post("/oauth2/token").header("Authorization", basic("lector", "lector-test"))
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED).param("grant_type", "client_credentials")

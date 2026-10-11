@@ -31,8 +31,9 @@ public class SolicitudController {
 
     @PostMapping("/procesos/{proceso}")
     public ResponseEntity<Map<String, Object>> solicitar(@PathVariable String proceso,
+                                                         @RequestParam(required=false) String periodo,
                                                          @AuthenticationPrincipal Jwt jwt) {
-        var solicitud = solicitudes.solicitar(proceso, jwt.getSubject());
+        var solicitud = periodo==null?solicitudes.solicitar(proceso, jwt.getSubject()):solicitudes.solicitar(proceso,jwt.getSubject(),periodo);
         return ResponseEntity.accepted().location(URI.create("/api/solicitudes/" + solicitud.get("id")))
                 .body(solicitud);
     }

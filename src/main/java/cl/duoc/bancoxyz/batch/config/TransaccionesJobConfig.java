@@ -57,9 +57,9 @@ public class TransaccionesJobConfig {
                                          JdbcTemplate jdbcTemplate) {
         return new StepBuilder("limpiarTransaccionesStep", repository)
                 .tasklet((contribution, context) -> {
-                    jdbcTemplate.update("DELETE FROM transacciones_procesadas");
-                    jdbcTemplate.update("DELETE FROM resumen_transacciones");
-                    jdbcTemplate.update("DELETE FROM registros_rechazados WHERE job = 'transaccionesJob'");
+                    jdbcTemplate.update("DELETE FROM transacciones_procesadas WHERE ejecucion_id=?", context.getStepContext().getStepExecution().getJobExecution().getJobInstance().getInstanceId());
+                    jdbcTemplate.update("DELETE FROM resumen_transacciones WHERE ejecucion_id=?", context.getStepContext().getStepExecution().getJobExecution().getJobInstance().getInstanceId());
+                    jdbcTemplate.update("DELETE FROM registros_rechazados WHERE job = \'transaccionesJob\' AND ejecucion_id=?", context.getStepContext().getStepExecution().getJobExecution().getJobInstance().getInstanceId());
                     return org.springframework.batch.repeat.RepeatStatus.FINISHED;
                 }, transactionManager)
                 .build();
@@ -69,13 +69,15 @@ public class TransaccionesJobConfig {
     // Rango de registros por partición.
     public Step procesarTransaccionesStep(JobRepository repository,
                                            PlatformTransactionManager transactionManager,
+                                           @Value("${app.batch.chunk-size:100}") int chunkSize,
                                            FlatFileItemReader<TransaccionCsv> transaccionesReader,
                                            JdbcBatchItemWriter<Transaccion> transaccionesWriter,
+                                           org.springframework.batch.item.ItemProcessor<TransaccionCsv,Transaccion> transaccionesProcessor,
                                            JdbcTemplate jdbcTemplate) {
         return new StepBuilder("procesarTransaccionesStep", repository)
-                .<TransaccionCsv, Transaccion>chunk(5, transactionManager)
+                .<TransaccionCsv, Transaccion>chunk(chunkSize, transactionManager)
                 .reader(transaccionesReader)
-                .processor(new TransaccionProcessor())
+                .processor(transaccionesProcessor)
                 .writer(transaccionesWriter)
                 .faultTolerant()
                 .skip(RegistroInvalidoException.class)
@@ -83,6 +85,8 @@ public class TransaccionesJobConfig {
                 .skip(DataIntegrityViolationException.class)
                 .skipLimit(100)
                 .retry(CannotAcquireLockException.class)
+                .retry(org.springframework.dao.TransientDataAccessException.class)
+                .retry(org.springframework.jdbc.CannotGetJdbcConnectionException.class)
                 .retryLimit(3)
                 .listener(new RegistroOmitidoListener<TransaccionCsv, Transaccion>(jdbcTemplate,
                         "transaccionesJob"))
@@ -120,11 +124,11 @@ public class TransaccionesJobConfig {
         return new StepBuilder("resumenTransaccionesStep", repository)
                 .tasklet((contribution, context) -> {
                     jdbcTemplate.update("""
-                            INSERT INTO resumen_transacciones(tipo, cantidad, monto_total, anomalias)
-                            SELECT tipo, COUNT(*), SUM(monto),
+                            INSERT INTO resumen_transacciones(ejecucion_id, fecha, tipo, cantidad, monto_total, anomalias)
+                            SELECT ejecucion_id, fecha, tipo, COUNT(*), SUM(monto),
                                    SUM(CASE WHEN anomalia THEN 1 ELSE 0 END)
-                            FROM transacciones_procesadas GROUP BY tipo
-                            """);
+                            FROM transacciones_procesadas WHERE ejecucion_id=? GROUP BY ejecucion_id, fecha, tipo
+                            """, context.getStepContext().getStepExecution().getJobExecution().getJobInstance().getInstanceId());
                     return org.springframework.batch.repeat.RepeatStatus.FINISHED;
                 }, transactionManager)
                 .build();
@@ -153,15 +157,27 @@ public class TransaccionesJobConfig {
     }
 
     @Bean
+    @StepScope
+    public org.springframework.batch.item.ItemProcessor<TransaccionCsv,Transaccion> transaccionesProcessor(
+            @Value("#{jobParameters['periodo']}") String periodo) {
+        return item -> {
+            var resultado=new TransaccionProcessor().process(item);
+            return periodo==null || resultado.fecha().equals(java.time.LocalDate.parse(periodo))?resultado:null;
+        };
+    }
+
+    @Bean
     // Persistencia de transacciones válidas.
-    public JdbcBatchItemWriter<Transaccion> transaccionesWriter(javax.sql.DataSource dataSource) {
+    @StepScope
+    public JdbcBatchItemWriter<Transaccion> transaccionesWriter(javax.sql.DataSource dataSource,
+            @Value("#{stepExecution.jobExecution.jobInstance.instanceId}") Long ejecucion) {
         return new JdbcBatchItemWriterBuilder<Transaccion>()
                 .dataSource(dataSource)
                 .sql("""
-                        INSERT INTO transacciones_procesadas(id, fecha, monto, tipo, anomalia)
-                        VALUES (:id, :fecha, :monto, :tipo, :anomalia)
+                        INSERT INTO transacciones_procesadas(ejecucion_id, id, fecha, monto, tipo, anomalia)
+                        VALUES (:ejecucionId, :id, :fecha, :monto, :tipo, :anomalia)
                         """)
-                .beanMapped()
+                .itemSqlParameterSourceProvider(item -> new cl.duoc.bancoxyz.batch.support.EjecucionSqlParameterSource(item,ejecucion))
                 .build();
     }
 }

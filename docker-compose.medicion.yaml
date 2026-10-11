@@ -1,0 +1,41 @@
+services:
+  postgres:
+    ports: !reset []
+  mensajeria:
+    ports: !reset []
+  descubrimiento:
+    ports: !reset []
+  configuracion:
+    ports: !reset []
+  autorizacion:
+    environment:
+      OAUTH_ISSUER: http://localhost:19000
+    ports: !override ["127.0.0.1:19000:9000"]
+  solicitudes:
+    environment:
+      OAUTH_ISSUER: http://localhost:19000
+    ports: !override ["127.0.0.1:18080:8080"]
+  consultas:
+    environment:
+      OAUTH_ISSUER: http://localhost:19000
+  clientes:
+    environment:
+      OAUTH_ISSUER: http://localhost:19000
+  cuentas:
+    environment:
+      OAUTH_ISSUER: http://localhost:19000
+  pagos:
+    environment:
+      OAUTH_ISSUER: http://localhost:19000
+  bff-web:
+    environment:
+      OAUTH_ISSUER: http://localhost:19000
+    ports: !override ["127.0.0.1:18090:8090"]
+  bff-movil:
+    environment:
+      OAUTH_ISSUER: http://localhost:19000
+    ports: !override ["127.0.0.1:18091:8091"]
+  bff-cajeros:
+    environment:
+      OAUTH_ISSUER: http://localhost:19000
+    ports: !override ["127.0.0.1:18092:8092"]

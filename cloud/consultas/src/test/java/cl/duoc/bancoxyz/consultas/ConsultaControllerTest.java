@@ -48,7 +48,10 @@ class ConsultaControllerTest {
     @CsvSource({"transacciones,transacciones_procesadas,id", "intereses,intereses_calculados,cuenta_id",
             "estados-anuales,estados_cuenta_anuales,'cuenta_id, anio'", "rechazados,registros_rechazados,id"})
     void lecturaAutorizadaPaginaEnJdbc(String recurso, String tabla, String orden) throws Exception {
-        String sql = "SELECT * FROM " + tabla + " ORDER BY " + orden + " LIMIT ? OFFSET ?";
+        String job=switch(recurso) { case "transacciones" -> "transaccionesJob";case "intereses" -> "interesesJob";default -> "estadosAnualesJob"; };
+        String filtro=recurso.equals("rechazados")?" WHERE ejecucion_id IN (SELECT ejecucion_id FROM publicaciones_batch)":
+                " WHERE ejecucion_id=(SELECT ejecucion_id FROM publicaciones_batch WHERE job='"+job+"')";
+        String sql = "SELECT * FROM " + tabla + filtro + " ORDER BY " + orden + " LIMIT ? OFFSET ?";
         when(jdbc.queryForList(sql, 5, 10)).thenReturn(List.of(Map.of("id", 7)));
         mvc.perform(get("/api/" + recurso).param("limite", "5").param("pagina", "2")
                 .with(jwt().authorities(new SimpleGrantedAuthority("SCOPE_datos.read"))))
